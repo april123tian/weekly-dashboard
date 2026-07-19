@@ -6,12 +6,12 @@ import numpy as np
 # 0. 全局页面配置 (浅色高对比度、现代化 Executive 看板风格)
 # ==========================================
 st.set_page_config(
-    page_title="悉尼 BD 单量&CM3周报看板",
+    page_title="悉尼BD 单量&CM3数据周报看板",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# 注入高对比度、纯白阴影卡片、完美复刻截图的黑底白字胶囊 Tabs 样式
+# 注入高对比度、纯白阴影卡片、清爽细边框文字高亮 Tabs 样式
 st.markdown("""
     <style>
     /* 基础背景与文字颜色锁死，防止亮暗主题切换导致白字不可见 */
@@ -35,46 +35,43 @@ st.markdown("""
         color: #1a252c !important;
     }
     
-    /* ==================== 完美复刻截图：药丸/胶囊状横向 Tabs 样式 ==================== */
-    /* 移除原生自带的底部红线 */
+    /* ==================== 干净轻量化文字边框高亮 Tabs 样式 ==================== */
     .stTabs [data-baseweb="tab-border"] {
         display: none !important;
     }
     .stTabs [data-baseweb="tab-list"] {
-        gap: 12px !important;
+        gap: 16px !important;
         background-color: transparent !important;
         padding: 10px 0 !important;
+        border-bottom: 1px solid #e2e8f0 !important;
     }
     
-    /* 默认状态：白底、圆角药丸、深色字（对应截图未选中的状态） */
+    /* 基础状态：纯白背景、细灰色边框、圆角药丸形状 */
     .stTabs [data-baseweb="tab"] {
         background-color: #ffffff !important;
-        color: #1a252c !important;
-        border: 1px solid #dee2e6 !important;
+        color: #64748b !important; 
+        border: 1px solid #e2e8f0 !important;
         border-radius: 20px !important; 
-        padding: 6px 24px !important;
+        padding: 8px 24px !important;
         height: auto !important;
         font-weight: 500 !important;
-        transition: all 0.2s ease;
+        transition: all 0.2s ease-in-out;
     }
     
-    /* 选中状态：锁死为黑底、纯白字！（完美复刻截图“概览”按钮，绝对清晰） */
+    /* 选中状态：保持白底，仅通过“文字加深加粗”和“细黑边框”来突出页面 */
     .stTabs [aria-selected="true"] {
-        background-color: #1a252c !important; 
-        color: #ffffff !important;           
-        font-weight: bold !important;
-        border-color: #1a252c !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        background-color: #ffffff !important; 
+        color: #1a252c !important;           
+        font-weight: 700 !important;           
+        border: 2px solid #1a252c !important;  
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important; 
     }
 
     /* 鼠标悬停状态 */
     .stTabs [data-baseweb="tab"]:hover {
         background-color: #f8f9fa !important;
-        border-color: #ced4da !important;
-    }
-    .stTabs [aria-selected="true"]:hover {
-        background-color: #2c3e50 !important; 
-        color: #ffffff !important;
+        color: #1a252c !important;
+        border-color: #cbd5e1 !important;
     }
     /* ======================================================================== */
 
@@ -86,11 +83,11 @@ st.markdown("""
         border: 1px solid #eef0f2;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
         margin-bottom: 15px;
-        min-height: 140px;
+        min-height: 130px;
     }
     .kpi-title {
         color: #6c757d !important;
-        font-size: 13px !important;
+        font-size: 14px !important;
         font-weight: 500;
         margin-bottom: 8px;
     }
@@ -101,8 +98,7 @@ st.markdown("""
         margin-bottom: 6px;
     }
     .kpi-desc {
-        color: #8c96a0 !important;
-        font-size: 12px !important;
+        font-size: 13px !important;
     }
     .trend-up {
         color: #28a745 !important;
@@ -115,11 +111,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 顶部大 Banner
+# 顶部大 Banner (已按要求更新 title)
 st.markdown("""
     <div class="header-bar">
-        <h1 style='margin:0; font-size: 26px; font-weight:700;'>悉尼 BD 招商数据周报看板</h1>
-        <p style='margin:6px 0 0 0; opacity: 0.8; font-size: 13px;'>统计周期：2026年7月13日－7月19日（周一至周日） </p>
+        <h1 style='margin:0; font-size: 26px; font-weight:700;'>悉尼BD 单量&CM3数据周报看板</h1>
+        <p style='margin:6px 0 0 0; opacity: 0.8; font-size: 13px;'>统计周期：2026年7月13日－7月19日（周一至周日） · 统计口径：跟进人提交时间</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -136,10 +132,20 @@ def get_trend_html(val, label_suffix=""):
     if pd.isna(val):
         return "<span style='color:#8c96a0;'>-</span>"
     if val > 0:
-        return f"<span class='trend-up'>▲ +{val:.1f}%</span> <span style='color:#8c96a0; font-size:11px;'>{label_suffix}</span>"
+        return f"<span class='trend-up'>▲ +{val:.1f}%</span> <span style='color:#8c96a0; font-size:12px;'>{label_suffix}</span>"
     elif val < 0:
-        return f"<span class='trend-down'>▼ -{abs(val):.1f}%</span> <span style='color:#8c96a0; font-size:11px;'>{label_suffix}</span>"
-    return f"<span style='color:#1a252c;'>{val:.1f}%</span>"
+        return f"<span class='trend-down'>▼ -{abs(val):.1f}%</span> <span style='color:#8c96a0; font-size:12px;'>{label_suffix}</span>"
+    return f"<span style='color:#1a252c;'>{val:.1f}%</span> <span style='color:#8c96a0; font-size:12px;'>{label_suffix}</span>"
+
+def get_pure_trend_value_html(val):
+    """只生成带有红绿颜色大字的百分比值，用于直接展示在 KPI Card 主数值区"""
+    if pd.isna(val):
+        return "-"
+    if val > 0:
+        return f"<span class='trend-up'>+{val:.1f}%</span>"
+    elif val < 0:
+        return f"<span class='trend-down'>-{abs(val):.1f}%</span>"
+    return f"<span>{val:.1f}%</span>"
 
 # ==========================================
 # 2. 数据加载引擎
@@ -170,7 +176,7 @@ if data_loaded:
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("<h3 style='margin-bottom:15px;'>🌐 全盘核心运营总览</h3>", unsafe_allow_html=True)
         
-        # 计算大盘全局指标
+        # 计算大盘全局基础数据
         total_orders = df_raw['Orders'].sum()
         order_wow = calculate_growth_rate(total_orders, df_raw['weekly_order_gap'].sum())
         order_yoy = calculate_growth_rate(total_orders, df_raw['weekly_yoy_order_gap'].sum())
@@ -179,7 +185,7 @@ if data_loaded:
         cm3_wow = calculate_growth_rate(total_cm3, df_raw['weekly_cm3_gap'].sum())
         cm3_yoy = calculate_growth_rate(total_cm3, df_raw['weekly_yoy_cm3_gap'].sum())
         
-        # 平铺的白底高级指标卡片阵列
+        # 按照用户要求全新重构的 4 大核心 KPI 卡片阵列
         kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
         with kpi_col1:
             st.markdown(f"""
@@ -192,9 +198,9 @@ if data_loaded:
         with kpi_col2:
             st.markdown(f"""
                 <div class="kpi-card">
-                    <div class="kpi-title">总订单量同比</div>
-                    <div class="kpi-value">{total_orders:,} <span style='font-size:14px; font-weight:normal;'>单</span></div>
-                    <div class="kpi-desc">{get_trend_html(order_yoy, "YoY")}</div>
+                    <div class="kpi-title">总订单量同比 (YoY)</div>
+                    <div class="kpi-value">{get_pure_trend_value_html(order_yoy)}</div>
+                    <div class="kpi-desc" style='color:#8c96a0;'>对比去年同期增减幅</div>
                 </div>
             """, unsafe_allow_html=True)
         with kpi_col3:
@@ -208,15 +214,14 @@ if data_loaded:
         with kpi_col4:
             st.markdown(f"""
                 <div class="kpi-card">
-                    <div class="kpi-title">CM3 利润同比</div>
-                    <div class="kpi-value">${total_cm3:,.2f}</div>
-                    <div class="kpi-desc">{get_trend_html(cm3_yoy, "YoY")}</div>
+                    <div class="kpi-title">CM3 利润同比 (YoY)</div>
+                    <div class="kpi-value">{get_pure_trend_value_html(cm3_yoy)}</div>
+                    <div class="kpi-desc" style='color:#8c96a0;'>对比去年同期增减幅</div>
                 </div>
             """, unsafe_allow_html=True)
             
         st.markdown("<hr style='margin:30px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
         
-        # 区域阵列表格呈现
         st.markdown("<h3 style='margin-bottom:15px;'>📍 各个单独区域业绩阵列</h3>", unsafe_allow_html=True)
         region_agg = df_raw.groupby('Region').agg({
             'Orders': 'sum', 'weekly_order_gap': 'sum', 'weekly_yoy_order_gap': 'sum',
@@ -231,12 +236,11 @@ if data_loaded:
         st.dataframe(region_disp, use_container_width=True, hide_index=True)
 
     # ------------------------------------------
-    # 标签页二：多维交叉明细探索 (含动态联动大卡片)
+    # 标签页二：多维交叉明细探索 (动态联动模块同步修正)
     # ------------------------------------------
     with tab2:
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # 筛选器
         f_col1, f_col2, f_col3 = st.columns(3)
         with f_col1:
             sel_regions = st.multiselect("📍 选择筛选区域 (可多选):", options=sorted(df_raw['Region'].dropna().unique()))
@@ -245,7 +249,6 @@ if data_loaded:
         with f_col3:
             sel_cats = st.multiselect("🍔 选择商品品类 (可多选):", options=sorted(df_raw['Category'].dropna().unique()))
             
-        # 过滤数据
         df_filtered = df_raw.copy()
         if sel_regions:
             df_filtered = df_filtered[df_filtered['Region'].isin(sel_regions)]
@@ -257,7 +260,6 @@ if data_loaded:
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("<h3 style='margin-bottom:15px;'>📊 所选维度动态运营汇总</h3>", unsafe_allow_html=True)
         
-        # 计算联动过滤指标
         f_orders = df_filtered['Orders'].sum()
         f_order_wow = calculate_growth_rate(f_orders, df_filtered['weekly_order_gap'].sum())
         f_order_yoy = calculate_growth_rate(f_orders, df_filtered['weekly_yoy_order_gap'].sum())
@@ -266,7 +268,7 @@ if data_loaded:
         f_cm3_wow = calculate_growth_rate(f_cm3, df_filtered['weekly_cm3_gap'].sum())
         f_cm3_yoy = calculate_growth_rate(f_cm3, df_filtered['weekly_yoy_cm3_gap'].sum())
         
-        # 渲染动态联动的顶部汇总卡片
+        # 筛选联动卡片阵列同步按新版逻辑重构
         sum_col1, sum_col2, sum_col3, sum_col4 = st.columns(4)
         with sum_col1:
             st.markdown(f"""
@@ -279,9 +281,9 @@ if data_loaded:
         with sum_col2:
             st.markdown(f"""
                 <div class="kpi-card">
-                    <div class="kpi-title">当前订单量同比</div>
-                    <div class="kpi-value">{f_orders:,} <span style='font-size:14px; font-weight:normal;'>单</span></div>
-                    <div class="kpi-desc">{get_trend_html(f_order_yoy, "YoY")}</div>
+                    <div class="kpi-title">当前订单量同比 (YoY)</div>
+                    <div class="kpi-value">{get_pure_trend_value_html(f_order_yoy)}</div>
+                    <div class="kpi-desc" style='color:#8c96a0;'>所选维度同比增减幅</div>
                 </div>
             """, unsafe_allow_html=True)
         with sum_col3:
@@ -295,15 +297,14 @@ if data_loaded:
         with sum_col4:
             st.markdown(f"""
                 <div class="kpi-card">
-                    <div class="kpi-title">当前 CM3 利润同比</div>
-                    <div class="kpi-value">${f_cm3:,.2f}</div>
-                    <div class="kpi-desc">{get_trend_html(f_cm3_yoy, "YoY")}</div>
+                    <div class="kpi-title">当前 CM3 利润同比 (YoY)</div>
+                    <div class="kpi-value">{get_pure_trend_value_html(f_cm3_yoy)}</div>
+                    <div class="kpi-desc" style='color:#8c96a0;'>所选维度同比增减幅</div>
                 </div>
             """, unsafe_allow_html=True)
             
         st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
         
-        # 下方明细表
         st.markdown("<h3 style='margin-bottom:15px;'>📋 联动筛选结果明细表</h3>", unsafe_allow_html=True)
         df_filtered['Orders_Format'] = df_filtered['Orders'].apply(lambda x: f"{x:,}")
         df_filtered['CM3_Format'] = df_filtered['CM3'].apply(lambda x: f"${x:,.2f}")
