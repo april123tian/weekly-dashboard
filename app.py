@@ -203,7 +203,7 @@ if data_loaded:
             
         st.markdown("<hr style='margin:30px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
         
-        # 各区域阵列
+        # 区域阵列
         st.markdown("<h3 style='margin-bottom:15px;'>📍 各个单独区域业绩阵列</h3>", unsafe_allow_html=True)
         region_agg = df_raw.groupby('Region').agg({
             'Orders': 'sum', 'weekly_order_gap': 'sum', 'weekly_yoy_order_gap': 'sum',
@@ -222,7 +222,7 @@ if data_loaded:
 
         st.markdown("<hr style='margin:30px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
 
-        # BD综合大表
+        # BD大表
         st.markdown("<h3 style='margin-bottom:15px;'>👤 表三：BD 个人全维综合战报 (单量 & CM3 & YoY)</h3>", unsafe_allow_html=True)
         bd_agg = df_raw.groupby('Staff').agg({
             'Orders': 'sum', 'weekly_yoy_order_gap': 'sum',
@@ -309,28 +309,35 @@ if data_loaded:
             
         st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
 
-        # 新增优化点：品类维度综合战报看板 (单量 & CM3 & YoY)
-        st.markdown("<h3 style='margin-bottom:15px;'>🍔 品类维度核心业绩战报 (联动更新)</h3>", unsafe_allow_html=True)
+        # 核心优化点：品类看板增加过滤条件 -> 仅展示周订单数 > 210单（即日均 > 30单）的品类
+        st.markdown("<h3 style='margin-bottom:15px;'>🍔 核心品类业绩战报（已过滤日均单量 ≤ 30单的细分品类）</h3>", unsafe_allow_html=True)
         if not df_filtered.empty:
             cat_agg = df_filtered.groupby('Category').agg({
                 'Orders': 'sum', 'weekly_yoy_order_gap': 'sum',
                 'CM3': 'sum', 'weekly_yoy_cm3_gap': 'sum'
             }).reset_index()
             
-            cat_agg['订单同比 (YoY)'] = cat_agg.apply(lambda r: f"{calculate_growth_rate(r['Orders'], r['weekly_yoy_order_gap']):+.1f}%", axis=1)
-            cat_agg['CM3 同比 (YoY)'] = cat_agg.apply(lambda r: f"{calculate_growth_rate(r['CM3'], r['weekly_yoy_cm3_gap']):+.1f}%", axis=1)
-            cat_agg['本周单量完成数'] = cat_agg['Orders'].apply(lambda x: f"{x:,}")
-            cat_agg['CM3利润完成额'] = cat_agg['CM3'].apply(lambda x: f"${x:,.2f}")
+            # 关键过滤：日均 > 30单，也就是一周订单总量 > 210单
+            cat_agg_filtered = cat_agg[cat_agg['Orders'] > 210].copy()
             
-            cat_disp = cat_agg.sort_values('Orders', ascending=False)
-            cat_disp = cat_disp[['Category', '本周单量完成数', '订单同比 (YoY)', 'CM3利润完成额', 'CM3 同比 (YoY)']]
-            cat_disp.columns = ['品类名称', '本周单量', '订单同比 (YoY) 趋势', 'CM3 利润', 'CM3 利润同比 (YoY) 趋势']
-            st.dataframe(cat_disp, use_container_width=True, hide_index=True)
+            if not cat_agg_filtered.empty:
+                cat_agg_filtered['订单同比 (YoY)'] = cat_agg_filtered.apply(lambda r: f"{calculate_growth_rate(r['Orders'], r['weekly_yoy_order_gap']):+.1f}%", axis=1)
+                cat_agg_filtered['CM3 同比 (YoY)'] = cat_agg_filtered.apply(lambda r: f"{calculate_growth_rate(r['CM3'], r['weekly_yoy_cm3_gap']):+.1f}%", axis=1)
+                cat_agg_filtered['本周单量完成数'] = cat_agg_filtered['Orders'].apply(lambda x: f"{x:,}")
+                cat_agg_filtered['CM3利润完成额'] = cat_agg_filtered['CM3'].apply(lambda x: f"${x:,.2f}")
+                
+                cat_disp = cat_agg_filtered.sort_values('Orders', ascending=False)
+                cat_disp = cat_disp[['Category', '本周单量完成数', '订单同比 (YoY) 趋势', 'CM3利润完成额', 'CM3 同比 (YoY) 趋势']]
+                cat_disp.columns = ['品类名称', '本周单量', '订单同比 (YoY) 趋势', 'CM3 利润', 'CM3 利润同比 (YoY) 趋势']
+                st.dataframe(cat_disp, use_container_width=True, hide_index=True)
+            else:
+                st.info("💡 当前筛选范围内，没有任何一个品类的日均订单量能够超过 30 单。")
         else:
             st.info("💡 当前筛选条件下没有品类数据。")
 
         st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
         
+        # 联动筛选结果明细表
         st.markdown("<h3 style='margin-bottom:15px;'>📋 联动筛选结果明细表 (含 YoY 趋势)</h3>", unsafe_allow_html=True)
         
         df_filtered['单量 YoY'] = df_filtered.apply(lambda r: calculate_growth_rate(r['Orders'], r['weekly_yoy_order_gap']), axis=1)
@@ -350,7 +357,7 @@ if data_loaded:
 
         st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
 
-        # 动态诊断专区
+        # 🚨 业务漏斗预警
         st.markdown("<h3 style='color:#dc3545 !important; margin-bottom:15px;'>🚨 业务漏斗预警：当前筛选下 YoY 同比下滑最严重店铺 Top 10（过滤日均 ≤ 10单小店）</h3>", unsafe_allow_html=True)
         
         df_high_vol = df_filtered[df_filtered['Orders'] > 70].copy()
