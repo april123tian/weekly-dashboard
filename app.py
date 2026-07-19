@@ -309,7 +309,7 @@ if data_loaded:
             
         st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
 
-        # 核心优化点：品类看板增加过滤条件 -> 仅展示周订单数 > 210单（即日均 > 30单）的品类
+        # 🍔 品类战报看板 (已修复顺序错乱 bug)
         st.markdown("<h3 style='margin-bottom:15px;'>🍔 核心品类业绩战报（已过滤日均单量 ≤ 30单的细分品类）</h3>", unsafe_allow_html=True)
         if not df_filtered.empty:
             cat_agg = df_filtered.groupby('Category').agg({
@@ -317,17 +317,20 @@ if data_loaded:
                 'CM3': 'sum', 'weekly_yoy_cm3_gap': 'sum'
             }).reset_index()
             
-            # 关键过滤：日均 > 30单，也就是一周订单总量 > 210单
+            # 关键过滤：日均 > 30单 (周总量 > 210单)
             cat_agg_filtered = cat_agg[cat_agg['Orders'] > 210].copy()
             
             if not cat_agg_filtered.empty:
-                cat_agg_filtered['订单同比 (YoY)'] = cat_agg_filtered.apply(lambda r: f"{calculate_growth_rate(r['Orders'], r['weekly_yoy_order_gap']):+.1f}%", axis=1)
-                cat_agg_filtered['CM3 同比 (YoY)'] = cat_agg_filtered.apply(lambda r: f"{calculate_growth_rate(r['CM3'], r['weekly_yoy_cm3_gap']):+.1f}%", axis=1)
+                cat_agg_filtered['订单同比 (YoY) 趋势'] = cat_agg_filtered.apply(lambda r: f"{calculate_growth_rate(r['Orders'], r['weekly_yoy_order_gap']):+.1f}%", axis=1)
+                cat_agg_filtered['CM3 利润同比 (YoY) 趋势'] = cat_agg_filtered.apply(lambda r: f"{calculate_growth_rate(r['CM3'], r['weekly_yoy_cm3_gap']):+.1f}%", axis=1)
                 cat_agg_filtered['本周单量完成数'] = cat_agg_filtered['Orders'].apply(lambda x: f"{x:,}")
                 cat_agg_filtered['CM3利润完成额'] = cat_agg_filtered['CM3'].apply(lambda x: f"${x:,.2f}")
                 
+                # 正确的列处理顺序：先排序，再选出指定老列并规范好显示顺序
                 cat_disp = cat_agg_filtered.sort_values('Orders', ascending=False)
-                cat_disp = cat_disp[['Category', '本周单量完成数', '订单同比 (YoY) 趋势', 'CM3利润完成额', 'CM3 同比 (YoY) 趋势']]
+                cat_disp = cat_disp[['Category', '本周单量完成数', '订单同比 (YoY) 趋势', 'CM3利润完成额', 'CM3 利润同比 (YoY) 趋势']]
+                
+                # 最后做展现层的重命名映射
                 cat_disp.columns = ['品类名称', '本周单量', '订单同比 (YoY) 趋势', 'CM3 利润', 'CM3 利润同比 (YoY) 趋势']
                 st.dataframe(cat_disp, use_container_width=True, hide_index=True)
             else:
@@ -368,7 +371,7 @@ if data_loaded:
             drop_cols = ['店铺名字', 'Region', 'Staff', 'Orders_Format', '单量 YoY_Format', 'CM3_Format', 'CM3 YoY_Format']
             df_disp_drop = df_top_drop[drop_cols].rename(columns={
                 'Region': '所属区域', 'Staff': '负责人', 'Orders_Format': '本周单量',
-                '单量 YoY_Format': '单量同比下滑幅', 'CM3_Format': 'CM3利润', 'CM3 YoY_Format': 'CM3同比下滑幅'
+                '单量 YoY_Format': '单量同比下滑幅', 'CM3_Format': 'CM3利润', 'CM3同比下滑幅': 'CM3同比下滑幅'
             })
             st.dataframe(df_disp_drop, use_container_width=True, hide_index=True)
         else:
