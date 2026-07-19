@@ -222,7 +222,7 @@ if data_loaded:
         df_filtered['订单环比'] = df_filtered.apply(lambda r: format_trend_indicator(calculate_growth_rate(r['Orders'], r['weekly_order_gap'])), axis=1)
         df_filtered['订单同比'] = df_filtered.apply(lambda r: format_trend_indicator(calculate_growth_rate(r['Orders'], r['weekly_yoy_order_gap'])), axis=1)
         df_filtered['CM3环比'] = df_filtered.apply(lambda r: format_trend_indicator(calculate_growth_rate(r['CM3'], r['weekly_cm3_gap'])), axis=1)
-        df_filtered['CM3同比 = df_filtered.apply(lambda r: format_trend_indicator(calculate_growth_rate(r['CM3'], r['weekly_yoy_cm3_gap'])), axis=1)
+        df_filtered['CM3同比']= df_filtered.apply(lambda r: format_trend_indicator(calculate_growth_rate(r['CM3'], r['weekly_yoy_cm3_gap'])), axis=1)
         
         detail_cols = ['店铺名字', 'Region', 'Staff', 'Category', 'Orders', '订单环比', '订单同比', 'CM3', 'CM3环比', 'CM3同比']
         df_disp_detail = df_filtered[detail_cols].rename(columns={
