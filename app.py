@@ -33,7 +33,7 @@ st.markdown("""
         font-weight: bold !important;
     }
     </style>
-""", unsafe_allow_html=True)
+""", unsafe_allow_html=True) # <-- 已修正
 
 # ==========================================
 # 1. 动态数据加载与处理引擎
@@ -54,7 +54,6 @@ def add_arrow_prefix(val, is_currency=False):
 
 @st.cache_data
 def load_and_process_data():
-    # 从本地读取原始的 data.xlsx 完整数据
     df = pd.read_excel('data.xlsx')
     return df
 
@@ -76,7 +75,7 @@ menu = st.sidebar.radio(
 
 if data_loaded:
     # ==========================================
-    # 页面一：全盘整体业绩看板 (补全原始数据)
+    # 页面一：全盘整体业绩看板
     # ==========================================
     if menu == "全盘整体业绩看板":
         st.title("📊 全盘整体业绩看板")
@@ -104,7 +103,7 @@ if data_loaded:
         with col3:
             st.metric("CM3 利润去年同比走势", f"${total_cm3:,.2f}", f"+{total_cm3_yoy:.1f}% (YoY)")
             
-        st.markdown("<br>", unsafe_allowed_html=True)
+        st.markdown("<br>", unsafe_allow_html=True) # <-- 已修正
         
         # 核心商圈表格聚合展示
         st.subheader("📍 核心商圈维度业绩阵列 (Top 排列)")
@@ -125,21 +124,19 @@ if data_loaded:
         st.dataframe(region_table, use_container_width=True, hide_index=True)
 
     # ==========================================
-    # 页面二：多维交互探索中心 (补全过滤逻辑)
+    # 页面二：多维交互探索中心
     # ==========================================
     elif menu == "多维交互探索中心":
         st.title("🔍 多维交互探索中心")
         st.caption("支持按区域、BD负责人、品类跨维度动态交叉过滤")
         st.markdown("---")
         
-        # 动态筛选组件
         filter_col1, filter_col2 = st.columns(2)
         with filter_col1:
             selected_staff = st.multiselect("按 BD 负责人筛选:", options=df_raw['Staff'].unique())
         with filter_col2:
             selected_cat = st.multiselect("按 核心品类筛选:", options=df_raw['Category'].unique())
             
-        # 数据过滤联动
         df_filtered = df_raw.copy()
         if selected_staff:
             df_filtered = df_filtered[df_filtered['Staff'].isin(selected_staff)]
@@ -161,7 +158,6 @@ if data_loaded:
         st.caption("数据计算基准：实际数据截至 7月18日 (共18天) | 月度预估系数：31天")
         st.markdown("---")
         
-        # 录入解析出的最新数据源
         actual_source = {
             'Yuan Dong': {'daily_avg': 2316, 'mtd_cm3': 125359},
             '时晨': {'daily_avg': 1619, 'mtd_cm3': 145336},
@@ -193,7 +189,7 @@ if data_loaded:
             act = actual_source.get(bd, {'daily_avg': 0, 'mtd_cm3': 0})
             tgt = target_source[bd]
             
-            # --- 针对单量维度的计算 ---
+            # 单量维度
             daily_act = act['daily_avg']
             daily_tgt = tgt['order_target']
             order_rate = (daily_act / daily_tgt) * 100 if daily_tgt else 0
@@ -208,7 +204,7 @@ if data_loaded:
                 "目标差值": f"{order_arrow}{order_diff:+d}"
             })
             
-            # --- 针对 CM3 维度的计算 ---
+            # CM3 维度 (纯计算，不暴露公式)
             mtd_val = act['mtd_cm3']
             est_month_cm3 = (mtd_val / 18) * 31
             cm3_tgt = tgt['cm3_target']
@@ -230,7 +226,7 @@ if data_loaded:
         st.subheader("📋 表一：BD个人维度日均单量追踪")
         st.dataframe(df_order_final, use_container_width=True, hide_index=True)
         
-        st.markdown("<br>", unsafe_allowed_html=True)
+        st.markdown("<br>", unsafe_allow_html=True) # <-- 已修正
         
         st.subheader("💰 表二：BD个人维度月度 CM3 预测对齐")
         st.dataframe(df_cm3_final, use_container_width=True, hide_index=True)
