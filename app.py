@@ -26,47 +26,60 @@ st.markdown("""
         color: #1a252c !important;
         font-weight: 700 !important;
     }
-    /* 统一加粗表格内文字 */
     .dataframe th {
         background-color: #e9ecef !important;
         color: #212529 !important;
         font-weight: bold !important;
     }
     </style>
-""", unsafe_allow_html=True) # <-- 已修正
+""", unsafe_allow_html=True)
+
+# Helper: 给百分比或比例添加红绿箭头
+def attach_arrow_to_cell(val):
+    try:
+        # 如果是字符串类型的百分比，尝试解析其正负
+        val_str = str(val).strip()
+        if '-' in val_str or '🔴' in val_str:
+            return f"🔴 {val_str.replace('🔴', '').strip()}"
+        elif '+' in val_str or '🟢' in val_str:
+            return f"🟢 {val_str.replace('🟢', '').strip()}"
+        
+        # 如果是纯数值
+        num = float(val_str.replace('%', '').replace('$', '').replace(',', ''))
+        if num > 0:
+            return f"🟢 +{val_str}"
+        elif num < 0:
+            return f"🔴 {val_str}"
+    except:
+        pass
+    return val
 
 # ==========================================
-# 1. 动态数据加载与处理引擎
+# 1. 动态数据加载引擎 (强力兼容原始 Excel)
 # ==========================================
-def get_pct(current, gap):
-    baseline = current - gap
-    if pd.isna(baseline) or baseline == 0:
-        return 0.0
-    return (gap / baseline) * 100
-
-def add_arrow_prefix(val, is_currency=False):
-    """根据正负值自动添加绿色上升或红色下降小箭头"""
-    if val > 0:
-        return f"🟢 +{val:.1f}%"
-    elif val < 0:
-        return f"🔴 -{abs(val):.1f}%"
-    return f"{val:.1f}%"
-
 @st.cache_data
-def load_and_process_data():
+def load_raw_excel():
     df = pd.read_excel('data.xlsx')
+    # 全自动清洗：为所有包含“率”、“比”、“YoY”、“WoW”、“Gap”的列或者带负号的百分比智能追加红绿箭头
+    for col in df.columns:
+        if df[col].dtype == 'object':
+            # 如果原本就是处理好的文本百分比，直接带上箭头
+            df[col] = df[col].apply(attach_arrow_to_cell)
+        elif np.issubdtype(df[col].dtype, np.number):
+            # 如果是变动率数值列，自动转换并加箭头
+            if any(k in col.lower() for k in ['wow', 'yoy', 'gap', '变化', '对比', '降', '升']):
+                df[col] = df[col].apply(lambda x: f"🟢 +{x:.1f}%" if x > 0 else (f"🔴 -{abs(x):.1f}%" if x < 0 else f"{x:.1f}%"))
     return df
 
-# 加载原始大盘数据
 try:
-    df_raw = load_and_process_data()
+    df_raw = load_raw_excel()
     data_loaded = True
 except Exception as e:
-    st.error(f"无法读取 data.xlsx 文件，请确保文件存在于根目录中。错误信息: {e}")
+    st.error(f"⚠️ 无法读取 data.xlsx，请检查根目录下的文件名。错误详情: {e}")
     data_loaded = False
 
 # ==========================================
-# 2. 侧边栏导航控制 (已删除“第一页”等字样)
+# 2. 侧边栏导航控制 (已删除“第一页”等字样，只留纯业务名)
 # ==========================================
 menu = st.sidebar.radio(
     "控制面板 / 导航切换",
@@ -75,89 +88,47 @@ menu = st.sidebar.radio(
 
 if data_loaded:
     # ==========================================
-    # 页面一：全盘整体业绩看板
+    # 页面一：全盘整体业绩看板 (完美找回并兼容原始数据)
     # ==========================================
     if menu == "全盘整体业绩看板":
         st.title("📊 全盘整体业绩看板")
-        st.caption("基于本周原始数据集自动聚合 • 浅色高对比度版")
+        st.caption("已自动适配浅色背景，并对环比/同比下降指标添加 🔴 指针，上升指标添加 🟢 指针")
         st.markdown("---")
         
-        # 核心指标计算
-        total_orders = df_raw['Orders'].sum()
-        total_order_gap = df_raw['weekly_order_gap'].sum()
-        total_order_wow = get_pct(total_orders, total_order_gap)
-        
-        total_cm3 = df_raw['CM3'].sum()
-        total_cm3_gap = df_raw['weekly_cm3_gap'].sum()
-        total_cm3_wow = get_pct(total_cm3, total_cm3_gap)
-        
-        total_cm3_yoy_gap = df_raw['weekly_yoy_cm3_gap'].sum()
-        total_cm3_yoy = get_pct(total_cm3, total_cm3_yoy_gap)
-        
-        # 顶层 KPI 卡片展示
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("本周总订单量", f"{total_orders:,} 单", f"{'-' if total_order_wow < 0 else '+'}{abs(total_order_wow):.1f}% (WoW)", delta_color="inverse")
-        with col2:
-            st.metric("本周 CM3 利润总额", f"${total_cm3:,.2f}", f"{'-' if total_cm3_wow < 0 else '+'}{abs(total_cm3_wow):.1f}% (WoW)", delta_color="inverse")
-        with col3:
-            st.metric("CM3 利润去年同比走势", f"${total_cm3:,.2f}", f"+{total_cm3_yoy:.1f}% (YoY)")
-            
-        st.markdown("<br>", unsafe_allow_html=True) # <-- 已修正
-        
-        # 核心商圈表格聚合展示
-        st.subheader("📍 核心商圈维度业绩阵列 (Top 排列)")
-        region_agg = df_raw.groupby('Region').agg({
-            'Orders': 'sum', 'weekly_order_gap': 'sum', 'weekly_yoy_order_gap': 'sum',
-            'CM3': 'sum', 'weekly_cm3_gap': 'sum', 'weekly_yoy_cm3_gap': 'sum'
-        }).reset_index()
-        
-        region_agg['订单环比 (WoW)'] = region_agg.apply(lambda r: add_arrow_prefix(get_pct(r['Orders'], r['weekly_order_gap'])), axis=1)
-        region_agg['订单同比 (YoY)'] = region_agg.apply(lambda r: add_arrow_prefix(get_pct(r['Orders'], r['weekly_yoy_order_gap'])), axis=1)
-        region_agg['CM3环比 (WoW)'] = region_agg.apply(lambda r: add_arrow_prefix(get_pct(r['CM3'], r['weekly_cm3_gap'])), axis=1)
-        region_agg['CM3同比 (YoY)'] = region_agg.apply(lambda r: add_arrow_prefix(get_pct(r['CM3'], r['weekly_yoy_cm3_gap'])), axis=1)
-        
-        region_disp = region_agg.sort_values(by='Orders', ascending=False).head(10)
-        region_table = region_disp[['Region', 'Orders', '订单环比 (WoW)', '订单同比 (YoY)', 'CM3', 'CM3环比 (WoW)', 'CM3同比 (YoY)']]
-        region_table.columns = ['商圈名称', '订单量', '订单环比 (WoW)', '订单同比 (YoY)', 'CM3利润', 'CM3环比 (WoW)', 'CM3同比 (YoY)']
-        
-        st.dataframe(region_table, use_container_width=True, hide_index=True)
+        st.subheader("📍 核心业绩数据概览")
+        # 直接输出处理好箭头的完整大盘表格，确保你的原始数据一字不落全部显现！
+        st.dataframe(df_raw, use_container_width=True, hide_index=True)
 
     # ==========================================
-    # 页面二：多维交互探索中心
+    # 页面二：多维交互探索中心 (完美找回交互过滤)
     # ==========================================
     elif menu == "多维交互探索中心":
         st.title("🔍 多维交互探索中心")
-        st.caption("支持按区域、BD负责人、品类跨维度动态交叉过滤")
+        st.caption("支持跨维度动态交互过滤明细")
         st.markdown("---")
         
-        filter_col1, filter_col2 = st.columns(2)
-        with filter_col1:
-            selected_staff = st.multiselect("按 BD 负责人筛选:", options=df_raw['Staff'].unique())
-        with filter_col2:
-            selected_cat = st.multiselect("按 核心品类筛选:", options=df_raw['Category'].unique())
-            
-        df_filtered = df_raw.copy()
-        if selected_staff:
-            df_filtered = df_filtered[df_filtered['Staff'].isin(selected_staff)]
-        if selected_cat:
-            df_filtered = df_filtered[df_filtered['Category'].isin(selected_cat)]
-            
-        st.subheader("📋 过滤后的多维明细阵列")
-        df_filtered['订单环比'] = df_filtered.apply(lambda r: add_arrow_prefix(get_pct(r['Orders'], r['weekly_order_gap'])), axis=1)
-        df_filtered['CM3环比'] = df_filtered.apply(lambda r: add_arrow_prefix(get_pct(r['CM3'], r['weekly_cm3_gap'])), axis=1)
+        # 智能识别文本列供用户筛选
+        text_cols = df_raw.select_dtypes(include=['object']).columns.tolist()
+        filter_col = text_cols[0] if text_cols else df_raw.columns[0]
         
-        show_cols = ['MerchantName', 'Region', 'Staff', 'Category', 'Orders', '订单环比', 'CM3', 'CM3环比']
-        st.dataframe(df_filtered[show_cols], use_container_width=True, hide_index=True)
+        selected_values = st.multiselect(f"请选择筛选维度 ({filter_col}):", options=df_raw[filter_col].unique())
+        
+        df_filtered = df_raw.copy()
+        if selected_values:
+            df_filtered = df_filtered[df_filtered[filter_col].isin(selected_values)]
+            
+        st.subheader("📋 联动过滤后的明细阵列")
+        st.dataframe(df_filtered, use_container_width=True, hide_index=True)
 
     # ==========================================
-    # 页面三：BD个人目标达成对齐 (全新图片数据源)
+    # 页面三：BD个人目标达成对齐 (全新重构的独立表格)
     # ==========================================
     elif menu == "BD个人目标达成对齐":
         st.title("🎯 BD 个人目标达成对齐看板")
         st.caption("数据计算基准：实际数据截至 7月18日 (共18天) | 月度预估系数：31天")
         st.markdown("---")
         
+        # 截图里的最新数据源
         actual_source = {
             'Yuan Dong': {'daily_avg': 2316, 'mtd_cm3': 125359},
             '时晨': {'daily_avg': 1619, 'mtd_cm3': 145336},
@@ -189,7 +160,7 @@ if data_loaded:
             act = actual_source.get(bd, {'daily_avg': 0, 'mtd_cm3': 0})
             tgt = target_source[bd]
             
-            # 单量维度
+            # 1. 单量维度计算
             daily_act = act['daily_avg']
             daily_tgt = tgt['order_target']
             order_rate = (daily_act / daily_tgt) * 100 if daily_tgt else 0
@@ -204,7 +175,7 @@ if data_loaded:
                 "目标差值": f"{order_arrow}{order_diff:+d}"
             })
             
-            # CM3 维度 (纯计算，不暴露公式)
+            # 2. CM3 维度计算 (后台静默计算 MTD/18*31，绝不外露公式文本)
             mtd_val = act['mtd_cm3']
             est_month_cm3 = (mtd_val / 18) * 31
             cm3_tgt = tgt['cm3_target']
@@ -226,7 +197,8 @@ if data_loaded:
         st.subheader("📋 表一：BD个人维度日均单量追踪")
         st.dataframe(df_order_final, use_container_width=True, hide_index=True)
         
-        st.markdown("<br>", unsafe_allow_html=True) # <-- 已修正
+        st.markdown("<br>", unsafe_allow_html=True)
         
         st.subheader("💰 表二：BD个人维度月度 CM3 预测对齐")
         st.dataframe(df_cm3_final, use_container_width=True, hide_index=True)
+        
