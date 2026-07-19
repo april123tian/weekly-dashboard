@@ -39,7 +39,7 @@ st.markdown("""
         font-weight: bold;
     }
     </style>
-""", unsafe_allowed_html=True)
+""", unsafe_allow_html=True)
 
 # ==========================================
 # 1. 侧边栏导航控制 (删除“第一页”等字样，仅保留纯业务内容)
