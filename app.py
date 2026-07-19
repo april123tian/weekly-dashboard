@@ -203,7 +203,7 @@ if data_loaded:
             
         st.markdown("<hr style='margin:30px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
         
-        # 优化点 1：增加 CM3 YoY 同比趋势
+        # 区域列表展示
         st.markdown("<h3 style='margin-bottom:15px;'>📍 各个单独区域业绩阵列</h3>", unsafe_allow_html=True)
         region_agg = df_raw.groupby('Region').agg({
             'Orders': 'sum', 'weekly_order_gap': 'sum', 'weekly_yoy_order_gap': 'sum',
@@ -215,13 +215,14 @@ if data_loaded:
         region_agg['CM3 利润总计'] = region_agg['CM3'].apply(lambda x: f"${x:,.2f}")
         region_agg['CM3 同比 (YoY)'] = region_agg.apply(lambda r: f"{calculate_growth_rate(r['CM3'], r['weekly_yoy_cm3_gap']):.1f}%", axis=1)
         
-        region_disp = region_agg[['Region', 'Orders', '订单环比 (WoW)', '订单同比 (YoY)', 'CM3 利润总计', 'CM3 同比 (YoY)']].sort_values('Orders', ascending=False)
+        region_disp = region_agg.sort_values('Orders', ascending=False)
+        region_disp = region_disp[['Region', 'Orders', '订单环比 (WoW)', '订单同比 (YoY)', 'CM3 利润总计', 'CM3 同比 (YoY)']]
         region_disp.columns = ['区域名称', '本周订单量', '订单环比 (WoW)', '订单同比 (YoY)', 'CM3 利润总计', 'CM3 同比趋势 (YoY)']
         st.dataframe(region_disp, use_container_width=True, hide_index=True)
 
         st.markdown("<hr style='margin:30px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
 
-        # 优化点 2：第一页增加 BD 个人维度的综合战报表格
+        # 修复位置：先对原始明细聚合排序，再做列映射切片
         st.markdown("<h3 style='margin-bottom:15px;'>👤 表三：BD 个人全维综合战报 (单量 & CM3 & YoY)</h3>", unsafe_allow_html=True)
         bd_agg = df_raw.groupby('Staff').agg({
             'Orders': 'sum', 'weekly_yoy_order_gap': 'sum',
@@ -233,7 +234,8 @@ if data_loaded:
         bd_agg['本周总单量'] = bd_agg['Orders'].apply(lambda x: f"{x:,}")
         bd_agg['CM3 利润完成数'] = bd_agg['CM3'].apply(lambda x: f"${x:,.2f}")
         
-        bd_disp = bd_agg[['Staff', '本周总单量', '订单同比 (YoY)', 'CM3 利润完成数', 'CM3 同比 (YoY)']].sort_values('Orders', ascending=False)
+        bd_sorted = bd_agg.sort_values('Orders', ascending=False)
+        bd_disp = bd_sorted[['Staff', '本周总单量', '订单同比 (YoY)', 'CM3 利润完成数', 'CM3 同比 (YoY)']]
         bd_disp.columns = ['BD 负责人', '本周总单量', '订单同比 (YoY)', 'CM3 利润完成总额', 'CM3 利润同比 (YoY)']
         st.dataframe(bd_disp, use_container_width=True, hide_index=True)
 
@@ -246,11 +248,11 @@ if data_loaded:
         
         f_col1, f_col2, f_col3 = st.columns(3)
         with f_col1:
-            sel_regions = st.multiselect("📍 选择筛选区域 (可多选):", options=sorted(df_raw['Region'].dropna().unique()))
+            sel_regions = st.multiselect("📍 选择筛选区域 (可多选):", options=sorted(df_raw['Region'].dropna().unique()), key="sel_reg")
         with f_col2:
-            sel_staffs = st.multiselect("👤 选择负责 BD (可多选):", options=sorted(df_raw['Staff'].dropna().unique()))
+            sel_staffs = st.multiselect("👤 选择负责 BD (可多选):", options=sorted(df_raw['Staff'].dropna().unique()), key="sel_staff")
         with f_col3:
-            sel_cats = st.multiselect("🍔 选择商品品类 (可多选):", options=sorted(df_raw['Category'].dropna().unique()))
+            sel_cats = st.multiselect("🍔 选择商品品类 (可多选):", options=sorted(df_raw['Category'].dropna().unique()), key="sel_cat")
             
         df_filtered = df_raw.copy()
         if sel_regions:
@@ -307,10 +309,9 @@ if data_loaded:
             
         st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
         
-        # 优化点 3：明细大表增加单量和CM3的yoy变化趋势
         st.markdown("<h3 style='margin-bottom:15px;'>📋 联动筛选结果明细表 (含 YoY 趋势)</h3>", unsafe_allow_html=True)
         
-        # 动态计算明细表中每家店的 YoY 增长率
+        # 动态计算明细表中每家店的 YoY 增长率并格式化显示
         df_filtered['单量 YoY'] = df_filtered.apply(lambda r: calculate_growth_rate(r['Orders'], r['weekly_yoy_order_gap']), axis=1)
         df_filtered['CM3 YoY'] = df_filtered.apply(lambda r: calculate_growth_rate(r['CM3'], r['weekly_yoy_cm3_gap']), axis=1)
         
@@ -328,14 +329,14 @@ if data_loaded:
 
         st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
 
-        # 优化点 4：增加筛选状态下，日均单量 > 10单（即周单量 > 70单）且单量或CM3同比下降最多的前10家店
+        # 动态诊断专区
         st.markdown("<h3 style='color:#dc3545 !important; margin-bottom:15px;'>🚨 业务漏斗预警：当前筛选下 YoY 同比下滑最严重店铺 Top 10（过滤日均 ≤ 10单小店）</h3>", unsafe_allow_html=True)
         
         # 过滤条件：日均 > 10单，即周总订单数多于 70 单
         df_high_vol = df_filtered[df_filtered['Orders'] > 70].copy()
         
         if not df_high_vol.empty:
-            # 综合考量：选出单量下降或CM3下降最厉害的店铺（这里以单量下降为第一基准，CM3为辅助）
+            # 选出单量同比下降最多的前 10 家店铺
             df_top_drop = df_high_vol.sort_values(by='单量 YoY', ascending=True).head(10)
             
             drop_cols = ['店铺名字', 'Region', 'Staff', 'Orders_Format', '单量 YoY_Format', 'CM3_Format', 'CM3 YoY_Format']
