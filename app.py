@@ -126,13 +126,17 @@ if df_raw is not None:
     cw_orders = df_filtered['Orders'].sum()
     cw_cm3 = df_filtered['CM3'].sum()
     
-    # 结合 gap 倒推历史基准
-    lw_orders = cw_orders - df_filtered['weekly_order_gap'].sum()
-    lw_cm3 = cw_cm3 - df_filtered['weekly_cm3_gap'].sum()
-    w2_orders = df_filtered['上上周单量'].sum() if '上上周单量' in df_filtered.columns else 0
-    w2_cm3 = df_filtered['上上周cm3'].sum() if '上上周cm3' in df_filtered.columns else 0
-    yoy_orders = df_filtered['去年上周单量'].sum() if '去年上周单量' in df_filtered.columns else 0
-    yoy_cm3 = df_filtered['去年上周cm3'].sum() if '去年上周cm3' in df_filtered.columns else 0
+    # 从表里直接求和获取核心 gap（WoW 与 YoY）
+    wow_order_gap = df_filtered['weekly_order_gap'].sum()
+    wow_cm3_gap = df_filtered['weekly_cm3_gap'].sum()
+    yoy_order_gap = df_filtered['weekly_yoy_order_gap'].sum()
+    yoy_cm3_gap = df_filtered['weekly_yoy_cm3_gap'].sum()
+    
+    # 倒推历史基准值用于计算百分比
+    lw_orders = cw_orders - wow_order_gap
+    lw_cm3 = cw_cm3 - wow_cm3_gap
+    ly_orders = cw_orders - yoy_order_gap
+    ly_cm3 = cw_cm3 - yoy_cm3_gap
 
     def pct(current, baseline):
         if baseline and baseline != 0:
@@ -140,10 +144,12 @@ if df_raw is not None:
         return 0.0
 
     # 计算各维度变动率
-    wow_ord, wow2_ord, yoy_ord = pct(cw_orders, lw_orders), pct(cw_orders, w2_orders), pct(cw_orders, yoy_orders)
-    wow_cm3, wow2_cm3, yoy_cm3_pct = pct(cw_cm3, lw_cm3), pct(cw_cm3, w2_cm3), pct(cw_cm3, yoy_cm3)
+    wow_ord_pct = pct(cw_orders, lw_orders)
+    yoy_ord_pct = pct(cw_orders, ly_orders)
+    wow_cm3_pct = pct(cw_cm3, lw_cm3)
+    yoy_cm3_pct = pct(cw_cm3, ly_cm3)
 
-    # --- 5. 顶层数据大卡片复刻（全量呈现单量与利润的 YoY / WoW / WoW2） ---
+    # --- 5. 顶层横向核心数据表现 (KPI Summary - 包含 WoW 与 YoY 同时展示) ---
     st.markdown("---")
     st.markdown("### 📊 核心数据表现 (KPI Summary)")
     
@@ -154,16 +160,16 @@ if df_raw is not None:
             <div class="kpi-box">
                 <div class="kpi-title">📦 本周总订单量</div>
                 <div class="kpi-value" style="color: #1E1E1E;">{cw_orders:,.0f} <span style='font-size:16px; font-weight:normal;'>单</span></div>
-                <div class="kpi-footer">较上周：{df_filtered['weekly_order_gap'].sum():+,.0f} 单</div>
+                <div class="kpi-footer">环比上周(WoW)：{wow_order_gap:+,.0f} 单 ({wow_ord_pct:+.1f}%)</div>
             </div>
         """, unsafe_allow_html=True)
         
     with kpi_col2:
         st.markdown(f"""
             <div class="kpi-box">
-                <div class="kpi-title">🔄 订单变动分析</div>
-                <div class="kpi-value" style="color: #00B074; font-size: 24px;">WoW: {wow_ord:+.1f}%</div>
-                <div class="kpi-footer">YoY: {yoy_ord:+.1f}% | WoW2: {wow2_ord:+.1f}%</div>
+                <div class="kpi-title">📆 订单同比表现 (YoY)</div>
+                <div class="kpi-value" style="color: #00B074;">{yoy_ord_pct:+.1f}%</div>
+                <div class="kpi-footer">同比去年差额：{yoy_order_gap:+,.0f} 单</div>
             </div>
         """, unsafe_allow_html=True)
         
@@ -171,33 +177,47 @@ if df_raw is not None:
         st.markdown(f"""
             <div class="kpi-box">
                 <div class="kpi-title">💰 本周总 CM3 利润</div>
-                <div class="kpi-value" style="color: #2F80ED;">${cw_cm3:,.2f}</div>
-                <div class="kpi-footer">较上周：${df_filtered['weekly_cm3_gap'].sum():+,.2f}</div>
+                <div class="kpi-value" style="color: #1E1E1E;">${cw_cm3:,.2f}</div>
+                <div class="kpi-footer">环比上周(WoW)：${wow_cm3_gap:+,.2f} ({wow_cm3_pct:+.1f}%)</div>
             </div>
         """, unsafe_allow_html=True)
         
     with kpi_col4:
         st.markdown(f"""
             <div class="kpi-box">
-                <div class="kpi-title">📈 利润变动分析</div>
-                <div class="kpi-value" style="color: #0288D1; font-size: 24px;">WoW: {wow_cm3:+.1f}%</div>
-                <div class="kpi-footer">YoY: {yoy_cm3_pct:+.1f}% | WoW2: {wow2_cm3:+.1f}%</div>
+                <div class="kpi-title">📈 利润同比表现 (YoY)</div>
+                <div class="kpi-value" style="color: #0288D1;">{yoy_cm3_pct:+.1f}%</div>
+                <div class="kpi-footer">同比去年差额：${yoy_cm3_gap:+,.2f}</div>
             </div>
         """, unsafe_allow_html=True)
 
-    # --- 6. 下方明细业绩数据联动表 ---
+    # --- 6. 下方明细业绩数据联动表 (同时包含 WoW 和 YoY 的单量与 CM3 明细) ---
     st.markdown("---")
     st.markdown("### 📋 联动维度下的商户诊断明细")
     
-    display_cols = ['Region', '店铺名字', 'Staff', 'Category', 'Orders', 'CM3', 'weekly_order_gap', 'weekly_cm3_gap']
+    # 动态筛选并重命名列
+    display_cols = [
+        'Region', '店铺名字', 'Staff', 'Category', 
+        'Orders', 'weekly_order_gap', 'weekly_yoy_order_gap',
+        'CM3', 'weekly_cm3_gap', 'weekly_yoy_cm3_gap'
+    ]
     df_disp = df_filtered[display_cols].copy()
-    df_disp.columns = ['区域', '店铺名字', '负责人', '品类', '本周订单', '核心CM3', '订单环比增减', 'CM3环比增减']
+    df_disp.columns = [
+        '区域', '店铺名字', '负责人', '品类', 
+        '本周订单', '订单WoW差额', '订单YoY差额',
+        '本周CM3', 'CM3WoW差额', 'CM3YoY差额'
+    ]
     
-    # 使用色彩条突出业绩异动情况
+    # 使用色彩条突出业绩异动情况，负数显红，正数显绿
     st.dataframe(
-        df_disp.style.bar(subset=['订单环比增减'], color=['#FFCDD2', '#C8E6C9'], align='mid')
-                     .bar(subset=['CM3环比增减'], color=['#FFCDD2', '#C8E6C9'], align='mid')
-                     .format({'核心CM3': '${:,.2f}', 'CM3环比增减': '${:,.2f}', '本周订单': '{:,.0f}', '订单环比增减': '{:+,.0f}'}),
+        df_disp.style.bar(subset=['订单WoW差额'], color=['#FFCDD2', '#C8E6C9'], align='mid')
+                     .bar(subset=['订单YoY差额'], color=['#FFCDD2', '#C8E6C9'], align='mid')
+                     .bar(subset=['CM3WoW差额'], color=['#FFCDD2', '#C8E6C9'], align='mid')
+                     .bar(subset=['CM3YoY差额'], color=['#FFCDD2', '#C8E6C9'], align='mid')
+                     .format({
+                         '本周订单': '{:,.0f}', '订单WoW差额': '{:+,.0f}', '订单YoY差额': '{:+,.0f}',
+                         '本周CM3': '${:,.2f}', 'CM3WoW差额': '${:,.2f}', 'CM3YoY差额': '${:,.2f}'
+                     }),
         use_container_width=True,
         hide_index=True
     )
