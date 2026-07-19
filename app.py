@@ -6,7 +6,7 @@ import numpy as np
 # 0. 全局页面配置 (浅色高对比度、现代化 Executive 看板风格)
 # ==========================================
 st.set_page_config(
-    page_title="悉尼 BD 招商数据周报看板",
+    page_title="悉尼 BD 单量&CM3数据周报看板",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -95,7 +95,7 @@ st.markdown("""
 st.markdown("""
     <div class="header-bar">
         <h1 style='margin:0; font-size: 26px; font-weight:700;'>悉尼 BD 招商数据周报看板</h1>
-        <p style='margin:6px 0 0 0; opacity: 0.8; font-size: 13px;'>统计周期：2026年7月13日－7月19日（周一至周日） · 统计口径：跟进人提交时间</p>
+        <p style='margin:6px 0 0 0; opacity: 0.8; font-size: 13px;'>统计周期：2026年7月13日－7月19日（周一至周日） </p>
     </div>
 """, unsafe_allow_html=True)
 
