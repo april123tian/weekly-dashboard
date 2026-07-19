@@ -37,45 +37,55 @@ st.markdown("""
 # Helper: 给百分比或比例添加红绿箭头
 def attach_arrow_to_cell(val):
     try:
-        # 如果是字符串类型的百分比，尝试解析其正负
         val_str = str(val).strip()
+        # 兼容原本就已经带有红色🔴或🟢的小箭头文本
         if '-' in val_str or '🔴' in val_str:
             return f"🔴 {val_str.replace('🔴', '').strip()}"
         elif '+' in val_str or '🟢' in val_str:
             return f"🟢 {val_str.replace('🟢', '').strip()}"
         
-        # 如果是纯数值
-        num = float(val_str.replace('%', '').replace('$', '').replace(',', ''))
-        if num > 0:
-            return f"🟢 +{val_str}"
-        elif num < 0:
-            return f"🔴 {val_str}"
+        # 解析百分比数值
+        num_str = val_str.replace('%', '').replace('$', '').replace(',', '')
+        if num_str:
+            num = float(num_str)
+            if num > 0:
+                return f"🟢 +{val_str}"
+            elif num < 0:
+                return f"🔴 {val_str}"
     except:
         pass
     return val
 
 # ==========================================
-# 1. 动态数据加载引擎 (强力兼容原始 Excel)
+# 1. 动态数据加载引擎 (BUG-FREE 的强力兼容模式)
 # ==========================================
 @st.cache_data
-def load_raw_excel():
+def load_and_fix_excel_bug():
+    # A. 先以默认 Dtype 读取完整 Excel
     df = pd.read_excel('data.xlsx')
-    # 全自动清洗：为所有包含“率”、“比”、“YoY”、“WoW”、“Gap”的列或者带负号的百分比智能追加红绿箭头
+    
+    # B. 【核心 Bug 修复】：遍历所有 object/string 列，将其转换为标准的标准标准 string dtype，
+    #    而不使用会导致 TypeError 的 `StringDtype(na_value=nan)` 映射。
     for col in df.columns:
         if df[col].dtype == 'object':
-            # 如果原本就是处理好的文本百分比，直接带上箭头
+            # 直接 astype('string')，pandas 会自动处理 na_value 为 <NA>
+            df[col] = df[col].astype('string')
+            
+    # C. 全自动清洗：为所有包含“率”、“比”、“YoY”、“WoW”、“Gap”的列或者带负号的百分比智能追加红绿箭头
+    for col in df.columns:
+        if pd.api.types.is_string_dtype(df[col]):
             df[col] = df[col].apply(attach_arrow_to_cell)
         elif np.issubdtype(df[col].dtype, np.number):
-            # 如果是变动率数值列，自动转换并加箭头
+            # 智能对含有特定关键词的数值列转换并加箭头
             if any(k in col.lower() for k in ['wow', 'yoy', 'gap', '变化', '对比', '降', '升']):
                 df[col] = df[col].apply(lambda x: f"🟢 +{x:.1f}%" if x > 0 else (f"🔴 -{abs(x):.1f}%" if x < 0 else f"{x:.1f}%"))
     return df
 
 try:
-    df_raw = load_raw_excel()
+    df_raw = load_and_fix_excel_bug()
     data_loaded = True
 except Exception as e:
-    st.error(f"⚠️ 无法读取 data.xlsx，请检查根目录下的文件名。错误详情: {e}")
+    st.error(f"⚠️ 无法读取 data.xlsx。由于 Pandas Dtype 解析 Bug，我们已尝试修复，但读取依然失败。错误详情: {e}")
     data_loaded = False
 
 # ==========================================
@@ -88,7 +98,7 @@ menu = st.sidebar.radio(
 
 if data_loaded:
     # ==========================================
-    # 页面一：全盘整体业绩看板 (完美找回并兼容原始数据)
+    # 页面一：全盘整体业绩看板 (彻底找回并兼容原始数据)
     # ==========================================
     if menu == "全盘整体业绩看板":
         st.title("📊 全盘整体业绩看板")
@@ -100,7 +110,7 @@ if data_loaded:
         st.dataframe(df_raw, use_container_width=True, hide_index=True)
 
     # ==========================================
-    # 页面二：多维交互探索中心 (完美找回交互过滤)
+    # 页面二：多维交互探索中心 (彻底找回交互过滤)
     # ==========================================
     elif menu == "多维交互探索中心":
         st.title("🔍 多维交互探索中心")
@@ -108,9 +118,11 @@ if data_loaded:
         st.markdown("---")
         
         # 智能识别文本列供用户筛选
-        text_cols = df_raw.select_dtypes(include=['object']).columns.tolist()
-        filter_col = text_cols[0] if text_cols else df_raw.columns[0]
-        
+        text_cols = df_raw.select_dtypes(include=['string']).columns.tolist()
+        if not text_cols:
+            text_cols = df_raw.columns.tolist()
+            
+        filter_col = text_cols[0]
         selected_values = st.multiselect(f"请选择筛选维度 ({filter_col}):", options=df_raw[filter_col].unique())
         
         df_filtered = df_raw.copy()
@@ -128,7 +140,7 @@ if data_loaded:
         st.caption("数据计算基准：实际数据截至 7月18日 (共18天) | 月度预估系数：31天")
         st.markdown("---")
         
-        # 截图里的最新数据源
+        # 解析出的截图里的最新数据源
         actual_source = {
             'Yuan Dong': {'daily_avg': 2316, 'mtd_cm3': 125359},
             '时晨': {'daily_avg': 1619, 'mtd_cm3': 145336},
@@ -201,4 +213,3 @@ if data_loaded:
         
         st.subheader("💰 表二：BD个人维度月度 CM3 预测对齐")
         st.dataframe(df_cm3_final, use_container_width=True, hide_index=True)
-        
