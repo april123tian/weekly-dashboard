@@ -6,12 +6,12 @@ import numpy as np
 # 0. 全局页面配置 (浅色高对比度、现代化 Executive 看板风格)
 # ==========================================
 st.set_page_config(
-    page_title="悉尼 BD 单量&CM3数据周报看板",
+    page_title="悉尼 BD 单量&CM3周报看板",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# 注入高对比度、纯白阴影卡片、复刻截图风格的 CSS 样式
+# 注入高对比度、纯白阴影卡片、完美复刻截图的黑底白字胶囊 Tabs 样式
 st.markdown("""
     <style>
     /* 基础背景与文字颜色锁死，防止亮暗主题切换导致白字不可见 */
@@ -35,7 +35,50 @@ st.markdown("""
         color: #1a252c !important;
     }
     
-    /* 复刻截图：白底、圆角、微阴影的高级数据指标卡片 */
+    /* ==================== 完美复刻截图：药丸/胶囊状横向 Tabs 样式 ==================== */
+    /* 移除原生自带的底部红线 */
+    .stTabs [data-baseweb="tab-border"] {
+        display: none !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 12px !important;
+        background-color: transparent !important;
+        padding: 10px 0 !important;
+    }
+    
+    /* 默认状态：白底、圆角药丸、深色字（对应截图未选中的状态） */
+    .stTabs [data-baseweb="tab"] {
+        background-color: #ffffff !important;
+        color: #1a252c !important;
+        border: 1px solid #dee2e6 !important;
+        border-radius: 20px !important; 
+        padding: 6px 24px !important;
+        height: auto !important;
+        font-weight: 500 !important;
+        transition: all 0.2s ease;
+    }
+    
+    /* 选中状态：锁死为黑底、纯白字！（完美复刻截图“概览”按钮，绝对清晰） */
+    .stTabs [aria-selected="true"] {
+        background-color: #1a252c !important; 
+        color: #ffffff !important;           
+        font-weight: bold !important;
+        border-color: #1a252c !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    }
+
+    /* 鼠标悬停状态 */
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: #f8f9fa !important;
+        border-color: #ced4da !important;
+    }
+    .stTabs [aria-selected="true"]:hover {
+        background-color: #2c3e50 !important; 
+        color: #ffffff !important;
+    }
+    /* ======================================================================== */
+
+    /* 白底、圆角、微阴影的高级数据指标卡片 */
     .kpi-card {
         background-color: #ffffff !important;
         padding: 20px;
@@ -69,29 +112,10 @@ st.markdown("""
         color: #dc3545 !important;
         font-weight: bold;
     }
-
-    /* 顶部大标签页选中的现代化按钮视觉优化 */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 15px;
-        padding-bottom: 10px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 42px;
-        background-color: #ffffff;
-        border-radius: 6px;
-        padding: 5px 24px;
-        border: 1px solid #e2e8f0;
-        color: #4a5568 !important;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #1a252c !important;
-        color: #ffffff !important;
-        font-weight: 600 !important;
-    }
     </style>
 """, unsafe_allow_html=True)
 
-# 顶部大 Banner (保持跟第一版一致的悉尼看板名头)
+# 顶部大 Banner
 st.markdown("""
     <div class="header-bar">
         <h1 style='margin:0; font-size: 26px; font-weight:700;'>悉尼 BD 招商数据周报看板</h1>
@@ -109,7 +133,6 @@ def calculate_growth_rate(current, gap):
     return (gap / baseline) * 100
 
 def get_trend_html(val, label_suffix=""):
-    """输出美观的红绿HTML趋势标签，解决官方组件颜色发白或者错乱问题"""
     if pd.isna(val):
         return "<span style='color:#8c96a0;'>-</span>"
     if val > 0:
@@ -136,7 +159,7 @@ except Exception as e:
 if data_loaded:
     
     # ==========================================
-    # 顶部横向标签页切换 (完全移除侧边栏)
+    # 顶部横向标签页切换
     # ==========================================
     tab1, tab2, tab3 = st.tabs(["📊 整体数据复盘看板", "🔍 多维交叉明细探索", "🎯 BD个人目标达成对齐"])
 
@@ -156,7 +179,7 @@ if data_loaded:
         cm3_wow = calculate_growth_rate(total_cm3, df_raw['weekly_cm3_gap'].sum())
         cm3_yoy = calculate_growth_rate(total_cm3, df_raw['weekly_yoy_cm3_gap'].sum())
         
-        # 复刻模板：横向平铺的白底高级指标卡片阵列
+        # 平铺的白底高级指标卡片阵列
         kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
         with kpi_col1:
             st.markdown(f"""
@@ -193,7 +216,7 @@ if data_loaded:
             
         st.markdown("<hr style='margin:30px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
         
-        # 单独区域阵列表格呈现
+        # 区域阵列表格呈现
         st.markdown("<h3 style='margin-bottom:15px;'>📍 各个单独区域业绩阵列</h3>", unsafe_allow_html=True)
         region_agg = df_raw.groupby('Region').agg({
             'Orders': 'sum', 'weekly_order_gap': 'sum', 'weekly_yoy_order_gap': 'sum',
@@ -213,7 +236,7 @@ if data_loaded:
     with tab2:
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # 顶部并排展示的干净筛选器
+        # 筛选器
         f_col1, f_col2, f_col3 = st.columns(3)
         with f_col1:
             sel_regions = st.multiselect("📍 选择筛选区域 (可多选):", options=sorted(df_raw['Region'].dropna().unique()))
@@ -280,7 +303,7 @@ if data_loaded:
             
         st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
         
-        # 下方联动明细数据表
+        # 下方明细表
         st.markdown("<h3 style='margin-bottom:15px;'>📋 联动筛选结果明细表</h3>", unsafe_allow_html=True)
         df_filtered['Orders_Format'] = df_filtered['Orders'].apply(lambda x: f"{x:,}")
         df_filtered['CM3_Format'] = df_filtered['CM3'].apply(lambda x: f"${x:,.2f}")
@@ -328,7 +351,6 @@ if data_loaded:
             act = actual_perf.get(name, {'daily_avg': 0, 'mtd_cm3': 0})
             tgt = target_perf[name]
             
-            # 单量追踪计算
             daily_act = act['daily_avg']
             daily_tgt = tgt['order_tgt']
             o_rate = (daily_act / daily_tgt) * 100 if daily_tgt else 0
@@ -343,7 +365,6 @@ if data_loaded:
                 "目标差值": f"{o_sign}{o_diff:,}" if o_diff != 0 else "0"
             })
             
-            # CM3 月度预测与对齐数
             mtd_cm3_val = act['mtd_cm3']
             est_month_cm3 = (mtd_cm3_val / 18) * 31
             cm3_tgt_val = tgt['cm3_tgt']
