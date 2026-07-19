@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 # ==========================================
-# 0. 全局页面配置 (浅色高对比度、现代化 Executive 看板风格)
+# 0. 全局页面配置 (浅色高对比度、行政看板风格)
 # ==========================================
 st.set_page_config(
     page_title="悉尼BD 单量&CM3数据周报看板",
@@ -11,16 +11,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 注入高对比度、纯白阴影卡片、清爽细边框文字高亮 Tabs 样式
+# 注入 CSS 样式
 st.markdown("""
     <style>
-    /* 基础背景与文字颜色锁死，防止亮暗主题切换导致白字不可见 */
     .stApp {
         background-color: #f4f5f7 !important;
         color: #1a252c !important;
     }
-    
-    /* 顶部明黄条高亮 */
     .header-bar {
         background-color: #FFDE00;
         padding: 24px;
@@ -29,13 +26,11 @@ st.markdown("""
         color: #1a252c !important;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
-    
-    /* 强力锁死所有标题与正常文本颜色 */
     h1, h2, h3, h4, h5, p, span, label, .stMarkdown {
         color: #1a252c !important;
     }
     
-    /* ==================== 干净轻量化文字边框高亮 Tabs 样式 ==================== */
+    /* Tabs 样式 */
     .stTabs [data-baseweb="tab-border"] {
         display: none !important;
     }
@@ -45,8 +40,6 @@ st.markdown("""
         padding: 10px 0 !important;
         border-bottom: 1px solid #e2e8f0 !important;
     }
-    
-    /* 基础状态：纯白背景、细灰色边框、圆角药丸形状 */
     .stTabs [data-baseweb="tab"] {
         background-color: #ffffff !important;
         color: #64748b !important; 
@@ -57,8 +50,6 @@ st.markdown("""
         font-weight: 500 !important;
         transition: all 0.2s ease-in-out;
     }
-    
-    /* 选中状态：保持白底，仅通过“文字加深加粗”和“细黑边框”来突出页面 */
     .stTabs [aria-selected="true"] {
         background-color: #ffffff !important; 
         color: #1a252c !important;           
@@ -66,16 +57,13 @@ st.markdown("""
         border: 2px solid #1a252c !important;  
         box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important; 
     }
-
-    /* 鼠标悬停状态 */
     .stTabs [data-baseweb="tab"]:hover {
         background-color: #f8f9fa !important;
         color: #1a252c !important;
         border-color: #cbd5e1 !important;
     }
-    /* ======================================================================== */
 
-    /* 白底、圆角、微阴影的高级数据指标卡片 */
+    /* KPI 卡片 */
     .kpi-card {
         background-color: #ffffff !important;
         padding: 20px;
@@ -111,7 +99,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 顶部大 Banner (已按要求更新 title)
 st.markdown("""
     <div class="header-bar">
         <h1 style='margin:0; font-size: 26px; font-weight:700;'>悉尼BD 单量&CM3数据周报看板</h1>
@@ -120,7 +107,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. 核心工具函数：趋势与增长计算
+# 1. 计算通用工具函数
 # ==========================================
 def calculate_growth_rate(current, gap):
     baseline = current - gap
@@ -138,7 +125,6 @@ def get_trend_html(val, label_suffix=""):
     return f"<span style='color:#1a252c;'>{val:.1f}%</span> <span style='color:#8c96a0; font-size:12px;'>{label_suffix}</span>"
 
 def get_pure_trend_value_html(val):
-    """只生成带有红绿颜色大字的百分比值，用于直接展示在 KPI Card 主数值区"""
     if pd.isna(val):
         return "-"
     if val > 0:
@@ -148,7 +134,7 @@ def get_pure_trend_value_html(val):
     return f"<span>{val:.1f}%</span>"
 
 # ==========================================
-# 2. 数据加载引擎
+# 2. 数据处理与引擎加载
 # ==========================================
 @st.cache_data
 def load_and_process_perf_data():
@@ -159,14 +145,11 @@ try:
     df_raw = load_and_process_perf_data()
     data_loaded = True
 except Exception as e:
-    st.error(f"❌ 无法读取 data.xlsx，请确保其存放在项目根目录下。错误详情: {e}")
+    st.error(f"❌ 无法读取 data.xlsx，错误详情: {e}")
     data_loaded = False
 
 if data_loaded:
     
-    # ==========================================
-    # 顶部横向标签页切换
-    # ==========================================
     tab1, tab2, tab3 = st.tabs(["📊 整体数据复盘看板", "🔍 多维交叉明细探索", "🎯 BD个人目标达成对齐"])
 
     # ------------------------------------------
@@ -176,7 +159,6 @@ if data_loaded:
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("<h3 style='margin-bottom:15px;'>🌐 全盘核心运营总览</h3>", unsafe_allow_html=True)
         
-        # 计算大盘全局基础数据
         total_orders = df_raw['Orders'].sum()
         order_wow = calculate_growth_rate(total_orders, df_raw['weekly_order_gap'].sum())
         order_yoy = calculate_growth_rate(total_orders, df_raw['weekly_yoy_order_gap'].sum())
@@ -185,7 +167,6 @@ if data_loaded:
         cm3_wow = calculate_growth_rate(total_cm3, df_raw['weekly_cm3_gap'].sum())
         cm3_yoy = calculate_growth_rate(total_cm3, df_raw['weekly_yoy_cm3_gap'].sum())
         
-        # 按照用户要求全新重构的 4 大核心 KPI 卡片阵列
         kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
         with kpi_col1:
             st.markdown(f"""
@@ -222,6 +203,7 @@ if data_loaded:
             
         st.markdown("<hr style='margin:30px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
         
+        # 优化点 1：增加 CM3 YoY 同比趋势
         st.markdown("<h3 style='margin-bottom:15px;'>📍 各个单独区域业绩阵列</h3>", unsafe_allow_html=True)
         region_agg = df_raw.groupby('Region').agg({
             'Orders': 'sum', 'weekly_order_gap': 'sum', 'weekly_yoy_order_gap': 'sum',
@@ -230,13 +212,34 @@ if data_loaded:
         
         region_agg['订单环比 (WoW)'] = region_agg.apply(lambda r: f"{calculate_growth_rate(r['Orders'], r['weekly_order_gap']):.1f}%", axis=1)
         region_agg['订单同比 (YoY)'] = region_agg.apply(lambda r: f"{calculate_growth_rate(r['Orders'], r['weekly_yoy_order_gap']):.1f}%", axis=1)
-        region_agg['CM3利润'] = region_agg['CM3'].apply(lambda x: f"${x:,.2f}")
-        region_disp = region_agg[['Region', 'Orders', '订单环比 (WoW)', '订单同比 (YoY)', 'CM3利润']].sort_values('Orders', ascending=False)
-        region_disp.columns = ['区域名称', '本周订单量', '订单环比 (WoW)', '订单同比 (YoY)', 'CM3 利润总计']
+        region_agg['CM3 利润总计'] = region_agg['CM3'].apply(lambda x: f"${x:,.2f}")
+        region_agg['CM3 同比 (YoY)'] = region_agg.apply(lambda r: f"{calculate_growth_rate(r['CM3'], r['weekly_yoy_cm3_gap']):.1f}%", axis=1)
+        
+        region_disp = region_agg[['Region', 'Orders', '订单环比 (WoW)', '订单同比 (YoY)', 'CM3 利润总计', 'CM3 同比 (YoY)']].sort_values('Orders', ascending=False)
+        region_disp.columns = ['区域名称', '本周订单量', '订单环比 (WoW)', '订单同比 (YoY)', 'CM3 利润总计', 'CM3 同比趋势 (YoY)']
         st.dataframe(region_disp, use_container_width=True, hide_index=True)
 
+        st.markdown("<hr style='margin:30px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
+
+        # 优化点 2：第一页增加 BD 个人维度的综合战报表格
+        st.markdown("<h3 style='margin-bottom:15px;'>👤 表三：BD 个人全维综合战报 (单量 & CM3 & YoY)</h3>", unsafe_allow_html=True)
+        bd_agg = df_raw.groupby('Staff').agg({
+            'Orders': 'sum', 'weekly_yoy_order_gap': 'sum',
+            'CM3': 'sum', 'weekly_yoy_cm3_gap': 'sum'
+        }).reset_index()
+        
+        bd_agg['订单同比 (YoY)'] = bd_agg.apply(lambda r: f"{calculate_growth_rate(r['Orders'], r['weekly_yoy_order_gap']):.1f}%", axis=1)
+        bd_agg['CM3 同比 (YoY)'] = bd_agg.apply(lambda r: f"{calculate_growth_rate(r['CM3'], r['weekly_yoy_cm3_gap']):.1f}%", axis=1)
+        bd_agg['本周总单量'] = bd_agg['Orders'].apply(lambda x: f"{x:,}")
+        bd_agg['CM3 利润完成数'] = bd_agg['CM3'].apply(lambda x: f"${x:,.2f}")
+        
+        bd_disp = bd_agg[['Staff', '本周总单量', '订单同比 (YoY)', 'CM3 利润完成数', 'CM3 同比 (YoY)']].sort_values('Orders', ascending=False)
+        bd_disp.columns = ['BD 负责人', '本周总单量', '订单同比 (YoY)', 'CM3 利润完成总额', 'CM3 利润同比 (YoY)']
+        st.dataframe(bd_disp, use_container_width=True, hide_index=True)
+
+
     # ------------------------------------------
-    # 标签页二：多维交叉明细探索 (动态联动模块同步修正)
+    # 标签页二：多维交叉明细探索
     # ------------------------------------------
     with tab2:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -268,7 +271,6 @@ if data_loaded:
         f_cm3_wow = calculate_growth_rate(f_cm3, df_filtered['weekly_cm3_gap'].sum())
         f_cm3_yoy = calculate_growth_rate(f_cm3, df_filtered['weekly_yoy_cm3_gap'].sum())
         
-        # 筛选联动卡片阵列同步按新版逻辑重构
         sum_col1, sum_col2, sum_col3, sum_col4 = st.columns(4)
         with sum_col1:
             st.markdown(f"""
@@ -305,15 +307,46 @@ if data_loaded:
             
         st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
         
-        st.markdown("<h3 style='margin-bottom:15px;'>📋 联动筛选结果明细表</h3>", unsafe_allow_html=True)
+        # 优化点 3：明细大表增加单量和CM3的yoy变化趋势
+        st.markdown("<h3 style='margin-bottom:15px;'>📋 联动筛选结果明细表 (含 YoY 趋势)</h3>", unsafe_allow_html=True)
+        
+        # 动态计算明细表中每家店的 YoY 增长率
+        df_filtered['单量 YoY'] = df_filtered.apply(lambda r: calculate_growth_rate(r['Orders'], r['weekly_yoy_order_gap']), axis=1)
+        df_filtered['CM3 YoY'] = df_filtered.apply(lambda r: calculate_growth_rate(r['CM3'], r['weekly_yoy_cm3_gap']), axis=1)
+        
+        df_filtered['单量 YoY_Format'] = df_filtered['单量 YoY'].apply(lambda x: f"{x:+.1f}%")
+        df_filtered['CM3 YoY_Format'] = df_filtered['CM3 YoY'].apply(lambda x: f"{x:+.1f}%")
         df_filtered['Orders_Format'] = df_filtered['Orders'].apply(lambda x: f"{x:,}")
         df_filtered['CM3_Format'] = df_filtered['CM3'].apply(lambda x: f"${x:,.2f}")
         
-        detail_cols = ['店铺名字', 'Region', 'Staff', 'Category', 'Orders_Format', 'CM3_Format']
+        detail_cols = ['店铺名字', 'Region', 'Staff', 'Category', 'Orders_Format', '单量 YoY_Format', 'CM3_Format', 'CM3 YoY_Format']
         df_disp_detail = df_filtered[detail_cols].rename(columns={
-            'Region': '所属区域', 'Staff': '负责人', 'Category': '品类', 'Orders_Format': '本周单量', 'CM3_Format': 'CM3利润'
+            'Region': '所属区域', 'Staff': '负责人', 'Category': '品类', 'Orders_Format': '本周单量',
+            '单量 YoY_Format': '单量 YoY 趋势', 'CM3_Format': 'CM3利润', 'CM3 YoY_Format': 'CM3 YoY 趋势'
         })
         st.dataframe(df_disp_detail, use_container_width=True, hide_index=True)
+
+        st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
+
+        # 优化点 4：增加筛选状态下，日均单量 > 10单（即周单量 > 70单）且单量或CM3同比下降最多的前10家店
+        st.markdown("<h3 style='color:#dc3545 !important; margin-bottom:15px;'>🚨 业务漏斗预警：当前筛选下 YoY 同比下滑最严重店铺 Top 10（过滤日均 ≤ 10单小店）</h3>", unsafe_allow_html=True)
+        
+        # 过滤条件：日均 > 10单，即周总订单数多于 70 单
+        df_high_vol = df_filtered[df_filtered['Orders'] > 70].copy()
+        
+        if not df_high_vol.empty:
+            # 综合考量：选出单量下降或CM3下降最厉害的店铺（这里以单量下降为第一基准，CM3为辅助）
+            df_top_drop = df_high_vol.sort_values(by='单量 YoY', ascending=True).head(10)
+            
+            drop_cols = ['店铺名字', 'Region', 'Staff', 'Orders_Format', '单量 YoY_Format', 'CM3_Format', 'CM3 YoY_Format']
+            df_disp_drop = df_top_drop[drop_cols].rename(columns={
+                'Region': '所属区域', 'Staff': '负责人', 'Orders_Format': '本周单量',
+                '单量 YoY_Format': '单量同比下滑幅', 'CM3_Format': 'CM3利润', 'CM3 YoY_Format': 'CM3同比下滑幅'
+            })
+            st.dataframe(df_disp_drop, use_container_width=True, hide_index=True)
+        else:
+            st.info("💡 当前筛选维度下，没有日均单量大于 10 单的店铺。")
+
 
     # ------------------------------------------
     # 标签页三：BD个人目标达成对齐
