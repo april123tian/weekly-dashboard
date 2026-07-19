@@ -68,7 +68,7 @@ try:
     with col2:
         st.metric(
             label=f"本周累计 CM3 表现", 
-            value=f"${metrics['CM3']['val'] Greek:,.2f}", 
+            value=f"${metrics['CM3']['val']:,.2f}", 
             delta=f"环比上周: {metrics['CM3']['wow']:.1f}% | 同比去年: {metrics['CM3']['yoy']:.1f}%"
         )
 
