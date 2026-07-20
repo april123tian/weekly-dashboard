@@ -377,23 +377,23 @@ if data_loaded:
         else:
             st.info("💡 当前筛选维度下，没有日均单量大于 10 单的店铺。")
 
-
     # ------------------------------------------
-    # 标签页三：BD个人目标达成对齐
+    # 标签页三：BD个人目标达成对齐 (修正后)
     # ------------------------------------------
     with tab3:
         st.markdown("<br>", unsafe_allow_html=True)
         
+        # 1. 最先定义最新数据源
         actual_perf = {
-            'Yuan Dong': {'daily_avg': 2316, 'mtd_cm3': 125359},
-            '时晨': {'daily_avg': 1619, 'mtd_cm3': 145336},
-            'Terry Meng': {'daily_avg': 1336, 'mtd_cm3': 119267},
-            'Qichong Wang': {'daily_avg': 799, 'mtd_cm3': 47487},
-            'Mabel Wang': {'daily_avg': 1572, 'mtd_cm3': 140476},
-            '田雨卿': {'daily_avg': 1530, 'mtd_cm3': 126704},
-            '张宇庭': {'daily_avg': 1635, 'mtd_cm3': 142211},
-            '覃念慈': {'daily_avg': 1394, 'mtd_cm3': 119417},
-            '李晓彤': {'daily_avg': 1593, 'mtd_cm3': 121866},
+            'Yuan Dong': {'daily_avg': 2332, 'mtd_cm3': 132357},
+            '时晨': {'daily_avg': 1616, 'mtd_cm3': 152273},
+            'Terry Meng': {'daily_avg': 1340, 'mtd_cm3': 127075},
+            'Qichong Wang': {'daily_avg': 804, 'mtd_cm3': 50940},
+            'Mabel Wang': {'daily_avg': 1572, 'mtd_cm3': 148576},
+            '田雨卿': {'daily_avg': 1543, 'mtd_cm3': 135247},
+            '张宇庭': {'daily_avg': 1650, 'mtd_cm3': 150268},
+            '覃念慈': {'daily_avg': 1397, 'mtd_cm3': 126550},
+            '李晓彤': {'daily_avg': 1600, 'mtd_cm3': 128996},
         }
         
         target_perf = {
@@ -407,63 +407,34 @@ if data_loaded:
             '时晨': {'order_tgt': 2310, 'cm3_tgt': 378308},
             'Yuan Dong': {'order_tgt': 2310, 'cm3_tgt': 321785},
         }
-        
-        order_rows = []
-        cm3_rows = []
-        
-        for name in target_perf.keys():
+
+        # 2. 定义颜色逻辑函数
+        def color_rate(val_str):
+            rate = float(val_str.strip('%'))
+            if rate >= 90: return 'color: #28a745; font-weight: bold;'
+            if rate < 70: return 'color: #dc3545; font-weight: bold;'
+            return 'color: #1a252c;'
+
+        # 3. 处理数据
+        order_data, cm3_data = [], []
+        for name, tgt in target_perf.items():
             act = actual_perf.get(name, {'daily_avg': 0, 'mtd_cm3': 0})
-            tgt = target_perf[name]
             
-            daily_act = act['daily_avg']
-            daily_tgt = tgt['order_tgt']
-            o_rate = (daily_act / daily_tgt) * 100 if daily_tgt else 0
-            o_diff = daily_act - daily_tgt
-            o_sign = "+" if o_diff > 0 else ""
+            # 单量计算
+            o_rate = (act['daily_avg'] / tgt['order_tgt']) * 100
+            order_data.append({"BD负责人": name, "当前日均": act['daily_avg'], "目标": tgt['order_tgt'], "完成度": f"{o_rate:.1f}%"})
             
-            order_rows.append({
-                "BD负责人": name,
-                "当前日均单量": f"{daily_act:,}",
-                "日均单量目标": f"{daily_tgt:,}",
-                "目标完成度": f"{o_rate:.1f}%",
-                "目标差值": f"{o_sign}{o_diff:,}" if o_diff != 0 else "0"
-            })
-            
-            mtd_cm3_val = act['mtd_cm3']
-            est_month_cm3 = (mtd_cm3_val / 19) * 31
-            cm3_tgt_val = tgt['cm3_tgt']
-            c_rate = (est_month_cm3 / cm3_tgt_val) * 100 if cm3_tgt_val else 0
-            c_diff = est_month_cm3 - cm3_tgt_val
-            c_sign = "+" if c_diff > 0 else ""
-            
-            cm3_rows.append({
-                "BD负责人": name,
-                "本月预估 CM3 完成数": f"${est_month_cm3:,.2f}",
-                "月度 CM3 目标值": f"${cm3_tgt_val:,.2f}",
-                "目标完成度": f"{c_rate:.1f}%",
-                "目标差值": f"{c_sign}${c_diff:,.2f}" if c_diff != 0 else "$0.00"
-            })
-            
-        st.markdown("<h3 style='margin-bottom:15px;'>📋 表一：BD个人维度日均单量追踪</h3>", unsafe_allow_html=True)
-        st.dataframe(pd.DataFrame(order_rows), use_container_width=True, hide_index=True)
-        # 基于 2026年7月19日 最新数据更新
-        actual_perf = {
-            'Yuan Dong': {'daily_avg': 2332, 'mtd_cm3': 132357},
-            '时晨': {'daily_avg': 1616, 'mtd_cm3': 152273},
-            'Terry Meng': {'daily_avg': 1340, 'mtd_cm3': 127075},
-            'Qichong Wang': {'daily_avg': 804, 'mtd_cm3': 50940},
-            'Mabel Wang': {'daily_avg': 1572, 'mtd_cm3': 148576},
-            '田雨卿': {'daily_avg': 1543, 'mtd_cm3': 135247},
-            '张宇庭': {'daily_avg': 1650, 'mtd_cm3': 150268},
-            '覃念慈': {'daily_avg': 1397, 'mtd_cm3': 126550},
-            '李晓彤': {'daily_avg': 1600, 'mtd_cm3': 128996},
-        }
-        st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
-        
-        st.markdown("<h3 style='margin-bottom:15px;'>💰 表二：BD个人维度月度 CM3 预测对齐</h3>", unsafe_allow_html=True)
-        st.dataframe(pd.DataFrame(cm3_rows), use_container_width=True, hide_index=True)
-        # 在显示百分比时，如果 > 90% 显示为绿色，< 70% 显示为红色
-def get_completion_color(rate):
-    if rate >= 90: return "#28a745"
-    if rate < 70: return "#dc3545"
-    return "#1a252c"
+            # CM3计算 (除以19天)
+            est_cm3 = (act['mtd_cm3'] / 19) * 31
+            c_rate = (est_cm3 / tgt['cm3_tgt']) * 100
+            cm3_data.append({"BD负责人": name, "本月预估": f"${est_cm3:,.0f}", "目标": f"${tgt['cm3_tgt']:,}", "完成度": f"{c_rate:.1f}%"})
+
+        # 4. 渲染带样式的表格
+        st.markdown("### 📋 BD个人维度日均单量追踪")
+        df_o = pd.DataFrame(order_data)
+        st.dataframe(df_o.style.map(color_rate, subset=['完成度']), use_container_width=True, hide_index=True)
+
+        st.markdown("---")
+        st.markdown("### 💰 BD个人维度月度 CM3 预测对齐")
+        df_c = pd.DataFrame(cm3_data)
+        st.dataframe(df_c.style.map(color_rate, subset=['完成度']), use_container_width=True, hide_index=True)
