@@ -52,8 +52,8 @@ st.markdown("""
     }
     .stTabs [aria-selected="true"] {
         background-color: #ffffff !important; 
-        color: #1a252c !important;           
-        font-weight: 700 !important;           
+        color: #1a252c !important;          
+        font-weight: 700 !important;          
         border: 2px solid #1a252c !important;  
         box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important; 
     }
@@ -134,18 +134,35 @@ def get_pure_trend_value_html(val):
     return f"<span>{val:.1f}%</span>"
 
 # ==========================================
-# 2. 数据处理与引擎加载
+# 2. 数据处理与引擎自动加载
 # ==========================================
 @st.cache_data
 def load_and_process_perf_data():
     df = pd.read_excel('data.xlsx')
+    
+    # 严格匹配新 Excel 的真实表头，清洗并翻译为标准内部字段
+    df = df.rename(columns={
+        'Satff': 'Staff',
+        '单量': 'Orders',
+        '上周cm3': 'CM3',
+        '上周收入': 'Income'
+    })
+    
+    # 防御性数据清洗：确保计算核心列全是数值类型，防止文本导致求和报错
+    numeric_cols = ['Orders', 'CM3', 'weekly_order_gap', 'weekly_yoy_order_gap', 
+                    'weekly_cm3_gap', 'weekly_yoy_cm3_gap', 'weekly_yoy_income_gap']
+    for col in numeric_cols:
+        if col not in df.columns:
+            df[col] = 0.0
+        else:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
     return df
 
 try:
     df_raw = load_and_process_perf_data()
     data_loaded = True
 except Exception as e:
-    st.error(f"❌ 无法读取 data.xlsx，错误详情: {e}")
+    st.error(f"❌ 无法读取新上传的 data.xlsx 文件，错误详情: {e}")
     data_loaded = False
 
 if data_loaded:
@@ -309,7 +326,7 @@ if data_loaded:
             
         st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
 
-        # 🍔 品类战报看板 (已修复顺序错乱 bug)
+        # 🍔 品类战报看板
         st.markdown("<h3 style='margin-bottom:15px;'>🍔 核心品类业绩战报（已过滤日均单量 ≤ 30单的细分品类）</h3>", unsafe_allow_html=True)
         if not df_filtered.empty:
             cat_agg = df_filtered.groupby('Category').agg({
@@ -326,11 +343,9 @@ if data_loaded:
                 cat_agg_filtered['本周单量完成数'] = cat_agg_filtered['Orders'].apply(lambda x: f"{x:,}")
                 cat_agg_filtered['CM3利润完成额'] = cat_agg_filtered['CM3'].apply(lambda x: f"${x:,.2f}")
                 
-                # 正确的列处理顺序：先排序，再选出指定老列并规范好显示顺序
                 cat_disp = cat_agg_filtered.sort_values('Orders', ascending=False)
                 cat_disp = cat_disp[['Category', '本周单量完成数', '订单同比 (YoY) 趋势', 'CM3利润完成额', 'CM3 利润同比 (YoY) 趋势']]
                 
-                # 最后做展现层的重命名映射
                 cat_disp.columns = ['品类名称', '本周单量', '订单同比 (YoY) 趋势', 'CM3 利润', 'CM3 利润同比 (YoY) 趋势']
                 st.dataframe(cat_disp, use_container_width=True, hide_index=True)
             else:
@@ -371,7 +386,7 @@ if data_loaded:
             drop_cols = ['店铺名字', 'Region', 'Staff', 'Orders_Format', '单量 YoY_Format', 'CM3_Format', 'CM3 YoY_Format']
             df_disp_drop = df_top_drop[drop_cols].rename(columns={
                 'Region': '所属区域', 'Staff': '负责人', 'Orders_Format': '本周单量',
-                '单量 YoY_Format': '单量同比下滑幅', 'CM3_Format': 'CM3利润', 'CM3同比下滑幅': 'CM3同比下滑幅'
+                '单量 YoY_Format': '单量同比下滑幅', 'CM3_Format': 'CM3利润', 'CM3 YoY_Format': 'CM3同比下滑幅'
             })
             st.dataframe(df_disp_drop, use_container_width=True, hide_index=True)
         else:
@@ -384,16 +399,13 @@ if data_loaded:
     with tab3:
         st.markdown("<br>", unsafe_allow_html=True)
         
-        actual_perf = {
-            'Yuan Dong': {'daily_avg': 2316, 'mtd_cm3': 125359},
-            '时晨': {'daily_avg': 1619, 'mtd_cm3': 145336},
-            'Terry Meng': {'daily_avg': 1336, 'mtd_cm3': 119267},
-            'Qichong Wang': {'daily_avg': 799, 'mtd_cm3': 47487},
-            'Mabel Wang': {'daily_avg': 1572, 'mtd_cm3': 140476},
-            '田雨卿': {'daily_avg': 1530, 'mtd_cm3': 126704},
-            '张宇庭': {'daily_avg': 1635, 'mtd_cm3': 142211},
-            '覃念慈': {'daily_avg': 1394, 'mtd_cm3': 119417},
-            '李晓彤': {'daily_avg': 1593, 'mtd_cm3': 121866},
+        # 实时从上传解析的 df_raw 数据源中提取 BD 当前周期内的动态业绩
+        dynamic_bd = df_raw.groupby('Staff').agg({'Orders':'sum', 'CM3':'sum'}).to_dict('index')
+        
+        # 核心 BD 本月特定专属利润增量池池 (Extra_Value)
+        extra_cm3_map = {
+            'Mabel Wang': 266733, '张宇庭': 283552, '田雨卿': 254767, 
+            '覃念慈': 229803, '李晓彤': 232436
         }
         
         target_perf = {
@@ -412,10 +424,12 @@ if data_loaded:
         cm3_rows = []
         
         for name in target_perf.keys():
-            act = actual_perf.get(name, {'daily_avg': 0, 'mtd_cm3': 0})
-            tgt = target_perf[name]
+            bd_metrics = dynamic_bd.get(name, {'Orders': 0, 'CM3': 0})
             
-            daily_act = act['daily_avg']
+            # 当前日均单量动态化：抓取该 BD 本周总单量 / 7 天
+            daily_act = round(bd_metrics['Orders'] / 7) if bd_metrics['Orders'] else 0
+            
+            tgt = target_perf[name]
             daily_tgt = tgt['order_tgt']
             o_rate = (daily_act / daily_tgt) * 100 if daily_tgt else 0
             o_diff = daily_act - daily_tgt
@@ -429,8 +443,10 @@ if data_loaded:
                 "目标差值": f"{o_sign}{o_diff:,}" if o_diff != 0 else "0"
             })
             
-            mtd_cm3_val = act['mtd_cm3']
-            est_month_cm3 = (mtd_cm3_val / 18) * 31
+            # 月度预测修正计算式：(MTD 当周累计 CM3 / 19) * 31 + 专属增量
+            mtd_cm3_val = bd_metrics['CM3']
+            est_month_cm3 = (mtd_cm3_val / 19) * 31 + extra_cm3_map.get(name, 0)
+            
             cm3_tgt_val = tgt['cm3_tgt']
             c_rate = (est_month_cm3 / cm3_tgt_val) * 100 if cm3_tgt_val else 0
             c_diff = est_month_cm3 - cm3_tgt_val
