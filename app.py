@@ -430,7 +430,7 @@ if data_loaded:
             })
             
             mtd_cm3_val = act['mtd_cm3']
-            est_month_cm3 = (mtd_cm3_val / 18) * 31
+            est_month_cm3 = (mtd_cm3_val / 19) * 31
             cm3_tgt_val = tgt['cm3_tgt']
             c_rate = (est_month_cm3 / cm3_tgt_val) * 100 if cm3_tgt_val else 0
             c_diff = est_month_cm3 - cm3_tgt_val
@@ -446,7 +446,18 @@ if data_loaded:
             
         st.markdown("<h3 style='margin-bottom:15px;'>📋 表一：BD个人维度日均单量追踪</h3>", unsafe_allow_html=True)
         st.dataframe(pd.DataFrame(order_rows), use_container_width=True, hide_index=True)
-        
+        # 基于 2026年7月19日 最新数据更新
+        actual_perf = {
+            'Yuan Dong': {'daily_avg': 2332, 'mtd_cm3': 132357},
+            '时晨': {'daily_avg': 1616, 'mtd_cm3': 152273},
+            'Terry Meng': {'daily_avg': 1340, 'mtd_cm3': 127075},
+            'Qichong Wang': {'daily_avg': 804, 'mtd_cm3': 50940},
+            'Mabel Wang': {'daily_avg': 1572, 'mtd_cm3': 148576},
+            '田雨卿': {'daily_avg': 1543, 'mtd_cm3': 135247},
+            '张宇庭': {'daily_avg': 1650, 'mtd_cm3': 150268},
+            '覃念慈': {'daily_avg': 1397, 'mtd_cm3': 126550},
+            '李晓彤': {'daily_avg': 1600, 'mtd_cm3': 128996},
+        }
         st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
         
         st.markdown("<h3 style='margin-bottom:15px;'>💰 表二：BD个人维度月度 CM3 预测对齐</h3>", unsafe_allow_html=True)
