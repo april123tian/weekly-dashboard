@@ -102,12 +102,12 @@ st.markdown("""
 st.markdown("""
     <div class="header-bar">
         <h1 style='margin:0; font-size: 26px; font-weight:700;'>悉尼BD 单量&CM3数据周报看板</h1>
-        <p style='margin:6px 0 0 0; opacity: 0.8; font-size: 13px;'>统计周期：2026年7月13日－7月19日（周一至周日） · 统计口径：跟进人提交时间</p>
+        <p style='margin:6px 0 0 0; opacity: 0.8; font-size: 13px;'>统计周期：2026年7月13日－7月19日（周一至周日） · 统计口径：根据最新Excel动态转换</p>
     </div>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. 计算通用工具函数
+# 1. 计算通用工具函数与颜色高亮
 # ==========================================
 def calculate_growth_rate(current, gap):
     baseline = current - gap
@@ -133,6 +133,18 @@ def get_pure_trend_value_html(val):
         return f"<span class='trend-down'>-{abs(val):.1f}%</span>"
     return f"<span>{val:.1f}%</span>"
 
+# 动态百分比颜色逻辑
+def style_completion_rate(val):
+    try:
+        rate = float(str(val).replace('%', '').strip())
+        if rate >= 90:
+            return 'color: #28a745; font-weight: bold;'
+        elif rate < 70:
+            return 'color: #dc3545; font-weight: bold;'
+        return 'color: #1a252c;'
+    except:
+        return 'color: #1a252c;'
+
 # ==========================================
 # 2. 数据处理与引擎自动加载
 # ==========================================
@@ -142,14 +154,23 @@ def load_and_process_perf_data():
     
     # 严格匹配新 Excel 的真实表头，清洗并翻译为标准内部字段
     df = df.rename(columns={
-        'Satff': 'Staff',
-        '单量': 'Orders',
-        '上周cm3': 'CM3',
-        '上周收入': 'Income'
+        'BD名字': 'Staff',
+        '总单量': 'Orders',
+        'MTD订单量': 'MTD_Orders',
+        'MTD CM3': 'CM3'
     })
     
+    # 统一英文名映射，防止因为中英文不一致导致目标匹配失败
+    name_map = {
+        '张宇庭': 'Zhang Yuting',
+        '田雨卿': 'Tian Yuqing',
+        '覃念慈': 'Tan Nianci',
+        '李晓彤': 'Li Xiaotong'
+    }
+    df['Staff'] = df['Staff'].replace(name_map)
+    
     # 防御性数据清洗：确保计算核心列全是数值类型，防止文本导致求和报错
-    numeric_cols = ['Orders', 'CM3', 'weekly_order_gap', 'weekly_yoy_order_gap', 
+    numeric_cols = ['Orders', 'CM3', 'MTD_Orders', 'weekly_order_gap', 'weekly_yoy_order_gap', 
                     'weekly_cm3_gap', 'weekly_yoy_cm3_gap', 'weekly_yoy_income_gap']
     for col in numeric_cols:
         if col not in df.columns:
@@ -399,21 +420,21 @@ if data_loaded:
     with tab3:
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # 实时从上传解析的 df_raw 数据源中提取 BD 当前周期内的动态业绩
+        # 实时从 df_raw 汇总动态当月累计数据 (用于单量和CM3的精密追踪)
         dynamic_bd = df_raw.groupby('Staff').agg({'Orders':'sum', 'CM3':'sum'}).to_dict('index')
         
-        # 核心 BD 本月特定专属利润增量池池 (Extra_Value)
+        # 核心 BD 本月特定专属利润增量池池 (Extra_Value Mapping)
         extra_cm3_map = {
-            'Mabel Wang': 266733, '张宇庭': 283552, '田雨卿': 254767, 
-            '覃念慈': 229803, '李晓彤': 232436
+            'Mabel Wang': 266733, 'Zhang Yuting': 283552, 'Tian Yuqing': 254767, 
+            'Tan Nianci': 229803, 'Li Xiaotong': 232436
         }
         
         target_perf = {
             'Mabel Wang': {'order_tgt': 1819, 'cm3_tgt': 302025},
-            '张宇庭': {'order_tgt': 1779, 'cm3_tgt': 306880},
-            '覃念慈': {'order_tgt': 1418, 'cm3_tgt': 232002},
-            '李晓彤': {'order_tgt': 1924, 'cm3_tgt': 262125},
-            '田雨卿': {'order_tgt': 1914, 'cm3_tgt': 285255},
+            'Zhang Yuting': {'order_tgt': 1779, 'cm3_tgt': 306880},
+            'Tan Nianci': {'order_tgt': 1418, 'cm3_tgt': 232002},
+            'Li Xiaotong': {'order_tgt': 1924, 'cm3_tgt': 262125},
+            'Tian Yuqing': {'order_tgt': 1914, 'cm3_tgt': 285255},
             'Terry Meng': {'order_tgt': 1785, 'cm3_tgt': 301457},
             'Qichong Wang': {'order_tgt': 790, 'cm3_tgt': 81810},
             '时晨': {'order_tgt': 2310, 'cm3_tgt': 378308},
@@ -426,7 +447,7 @@ if data_loaded:
         for name in target_perf.keys():
             bd_metrics = dynamic_bd.get(name, {'Orders': 0, 'CM3': 0})
             
-            # 当前日均单量动态化：抓取该 BD 本周总单量 / 7 天
+            # 当前日均单量动态化：抓取该 BD 在本周中的总单量 / 7 天
             daily_act = round(bd_metrics['Orders'] / 7) if bd_metrics['Orders'] else 0
             
             tgt = target_perf[name]
@@ -443,7 +464,7 @@ if data_loaded:
                 "目标差值": f"{o_sign}{o_diff:,}" if o_diff != 0 else "0"
             })
             
-            # 月度预测修正计算式：(MTD 当周累计 CM3 / 19) * 31 + 专属增量
+            # 月度预测修正计算式：(MTD 当周累计 CM3 / 19) * 31 + 专属额外增量值
             mtd_cm3_val = bd_metrics['CM3']
             est_month_cm3 = (mtd_cm3_val / 19) * 31 + extra_cm3_map.get(name, 0)
             
@@ -461,9 +482,13 @@ if data_loaded:
             })
             
         st.markdown("<h3 style='margin-bottom:15px;'>📋 表一：BD个人维度日均单量追踪</h3>", unsafe_allow_html=True)
-        st.dataframe(pd.DataFrame(order_rows), use_container_width=True, hide_index=True)
+        df_order_final = pd.DataFrame(order_rows)
+        # 对表一使用动态高亮样式
+        st.dataframe(df_order_final.style.applymap(style_completion_rate, subset=['目标完成度']), use_container_width=True, hide_index=True)
         
         st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
         
         st.markdown("<h3 style='margin-bottom:15px;'>💰 表二：BD个人维度月度 CM3 预测对齐</h3>", unsafe_allow_html=True)
-        st.dataframe(pd.DataFrame(cm3_rows), use_container_width=True, hide_index=True)
+        df_cm3_final = pd.DataFrame(cm3_rows)
+        # 对表二使用动态高亮样式并输出展示
+        st.dataframe(df_cm3_final.style.applymap(style_completion_rate, subset=['目标完成度']), use_container_width=True, hide_index=True)
