@@ -376,24 +376,23 @@ if data_loaded:
             st.dataframe(df_disp_drop, use_container_width=True, hide_index=True)
         else:
             st.info("💡 当前筛选维度下，没有日均单量大于 10 单的店铺。")
-
-   # ------------------------------------------
-    # 标签页三：BD个人目标达成对齐 (CM3数据已精准更新)
+# ------------------------------------------
+    # 标签页三：BD个人目标达成对齐 (CM3计算逻辑：预测后累加)
     # ------------------------------------------
     with tab3:
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # 已更新修正数据的 actual_perf
+        # 1. 原始 MTD 数据 (来自您的表格截图)
         actual_perf = {
-            'Yuan Dong': {'daily_avg': 2332, 'mtd_cm3': 132357},
-            '时晨': {'daily_avg': 1616, 'mtd_cm3': 152273},
-            'Terry Meng': {'daily_avg': 1340, 'mtd_cm3': 127075},
-            'Qichong Wang': {'daily_avg': 804, 'mtd_cm3': 50940},
-            'Mabel Wang': {'daily_avg': 1572, 'mtd_cm3': 266733},  # 已更新
-            '田雨卿': {'daily_avg': 1543, 'mtd_cm3': 254767},     # 已更新
-            '张宇庭': {'daily_avg': 1650, 'mtd_cm3': 283552},     # 已更新
-            '覃念慈': {'daily_avg': 1397, 'mtd_cm3': 229803},     # 已更新
-            '李晓彤': {'daily_avg': 1600, 'mtd_cm3': 232436},     # 已更新
+            'Yuan Dong': {'daily_avg': 2332, 'mtd_cm3': 132357, 'extra': 0},
+            '时晨': {'daily_avg': 1616, 'mtd_cm3': 152273, 'extra': 0},
+            'Terry Meng': {'daily_avg': 1340, 'mtd_cm3': 127075, 'extra': 0},
+            'Qichong Wang': {'daily_avg': 804, 'mtd_cm3': 50940, 'extra': 0},
+            'Mabel Wang': {'daily_avg': 1572, 'mtd_cm3': 148576, 'extra': 266733}, # 原始数据 + 额外值
+            '田雨卿': {'daily_avg': 1543, 'mtd_cm3': 135247, 'extra': 254767},    # 原始数据 + 额外值
+            '张宇庭': {'daily_avg': 1650, 'mtd_cm3': 150268, 'extra': 283552},    # 原始数据 + 额外值
+            '覃念慈': {'daily_avg': 1397, 'mtd_cm3': 126550, 'extra': 229803},    # 原始数据 + 额外值
+            '李晓彤': {'daily_avg': 1600, 'mtd_cm3': 128996, 'extra': 232436},    # 原始数据 + 额外值
         }
         
         target_perf = {
@@ -408,6 +407,7 @@ if data_loaded:
             'Yuan Dong': {'order_tgt': 2310, 'cm3_tgt': 321785},
         }
 
+        # 样式函数
         def color_rate(val_str):
             try:
                 rate = float(str(val_str).strip('%'))
@@ -419,15 +419,15 @@ if data_loaded:
 
         order_data, cm3_data = [], []
         for name, tgt in target_perf.items():
-            act = actual_perf.get(name, {'daily_avg': 0, 'mtd_cm3': 0})
+            act = actual_perf.get(name, {'daily_avg': 0, 'mtd_cm3': 0, 'extra': 0})
             
             # 单量计算
             o_rate = (act['daily_avg'] / tgt['order_tgt']) * 100
             o_diff = act['daily_avg'] - tgt['order_tgt']
             order_data.append({"BD负责人": name, "当前日均": f"{act['daily_avg']:,}", "目标值": f"{tgt['order_tgt']:,}", "完成度": f"{o_rate:.1f}%", "缺口/盈余": f"{o_diff:+,}"})
             
-            # CM3计算 (基于修正后的数据)
-            est_cm3 = (act['mtd_cm3'] / 19) * 31
+            # 修正后的 CM3 计算：(MTD / 19) * 31 + Extra
+            est_cm3 = (act['mtd_cm3'] / 19) * 31 + act['extra']
             c_rate = (est_cm3 / tgt['cm3_tgt']) * 100
             c_diff = est_cm3 - tgt['cm3_tgt']
             cm3_data.append({"BD负责人": name, "本月预估": f"${est_cm3:,.0f}", "目标值": f"${tgt['cm3_tgt']:,}", "完成度": f"{c_rate:.1f}%", "缺口/盈余": f"${c_diff:,.0f}"})
