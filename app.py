@@ -160,7 +160,11 @@ def load_and_process_perf_data():
         'MTD CM3': 'CM3'
     })
     
-    # 统一英文名映射，防止因为中英文不一致导致目标匹配失败
+    # 统一名字清洗逻辑，防止空行或两端空格造成匹配失效
+    if 'Staff' in df.columns:
+        df['Staff'] = df['Staff'].astype(str).str.strip()
+        
+    # 统一名字映射字典
     name_map = {
         '张宇庭': 'Zhang Yuting',
         '田雨卿': 'Tian Yuqing',
@@ -423,7 +427,7 @@ if data_loaded:
         # 实时从 df_raw 汇总动态当月累计数据 (用于单量和CM3的精密追踪)
         dynamic_bd = df_raw.groupby('Staff').agg({'Orders':'sum', 'CM3':'sum'}).to_dict('index')
         
-        # 核心 BD 本月特定专属利润增量池池 (Extra_Value Mapping)
+        # 核心 BD 本月特定专属利润增量池 (Extra_Value Mapping)
         extra_cm3_map = {
             'Mabel Wang': 266733, 'Zhang Yuting': 283552, 'Tian Yuqing': 254767, 
             'Tan Nianci': 229803, 'Li Xiaotong': 232436
@@ -483,12 +487,12 @@ if data_loaded:
             
         st.markdown("<h3 style='margin-bottom:15px;'>📋 表一：BD个人维度日均单量追踪</h3>", unsafe_allow_html=True)
         df_order_final = pd.DataFrame(order_rows)
-        # 对表一使用动态高亮样式
-        st.dataframe(df_order_final.style.applymap(style_completion_rate, subset=['目标完成度']), use_container_width=True, hide_index=True)
+        # 使用安全的 .map 替代已被废弃的 .applymap
+        st.dataframe(df_order_final.style.map(style_completion_rate, subset=['目标完成度']), use_container_width=True, hide_index=True)
         
         st.markdown("<hr style='margin:25px 0; border:0; border-top:1px solid #e2e8f0;'>", unsafe_allow_html=True)
         
         st.markdown("<h3 style='margin-bottom:15px;'>💰 表二：BD个人维度月度 CM3 预测对齐</h3>", unsafe_allow_html=True)
         df_cm3_final = pd.DataFrame(cm3_rows)
-        # 对表二使用动态高亮样式并输出展示
-        st.dataframe(df_cm3_final.style.applymap(style_completion_rate, subset=['目标完成度']), use_container_width=True, hide_index=True)
+        # 使用安全的 .map 替代已被废弃的 .applymap
+        st.dataframe(df_cm3_final.style.map(style_completion_rate, subset=['目标完成度']), use_container_width=True, hide_index=True)
