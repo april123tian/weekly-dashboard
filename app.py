@@ -378,12 +378,12 @@ if data_loaded:
             st.info("💡 当前筛选维度下，没有日均单量大于 10 单的店铺。")
 
     # ------------------------------------------
-    # 标签页三：BD个人目标达成对齐 (修正后)
+    # 标签页三：BD个人目标达成对齐 (含差值展示)
     # ------------------------------------------
     with tab3:
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # 1. 最先定义最新数据源
+        # 1. 最新数据源
         actual_perf = {
             'Yuan Dong': {'daily_avg': 2332, 'mtd_cm3': 132357},
             '时晨': {'daily_avg': 1616, 'mtd_cm3': 152273},
@@ -408,26 +408,43 @@ if data_loaded:
             'Yuan Dong': {'order_tgt': 2310, 'cm3_tgt': 321785},
         }
 
-        # 2. 定义颜色逻辑函数
+        # 2. 定义样式函数：仅作用于“完成度”列
         def color_rate(val_str):
-            rate = float(val_str.strip('%'))
-            if rate >= 90: return 'color: #28a745; font-weight: bold;'
-            if rate < 70: return 'color: #dc3545; font-weight: bold;'
-            return 'color: #1a252c;'
+            try:
+                rate = float(str(val_str).strip('%'))
+                if rate >= 90: return 'color: #28a745; font-weight: bold;'
+                if rate < 70: return 'color: #dc3545; font-weight: bold;'
+                return 'color: #1a252c;'
+            except:
+                return 'color: #1a252c;'
 
-        # 3. 处理数据
+        # 3. 处理数据 (加入差值列)
         order_data, cm3_data = [], []
         for name, tgt in target_perf.items():
             act = actual_perf.get(name, {'daily_avg': 0, 'mtd_cm3': 0})
             
             # 单量计算
             o_rate = (act['daily_avg'] / tgt['order_tgt']) * 100
-            order_data.append({"BD负责人": name, "当前日均": act['daily_avg'], "目标": tgt['order_tgt'], "完成度": f"{o_rate:.1f}%"})
+            o_diff = act['daily_avg'] - tgt['order_tgt']
+            order_data.append({
+                "BD负责人": name, 
+                "当前日均": f"{act['daily_avg']:,}", 
+                "目标值": f"{tgt['order_tgt']:,}", 
+                "完成度": f"{o_rate:.1f}%",
+                "缺口/盈余": f"{o_diff:+,}"
+            })
             
-            # CM3计算 (除以19天)
+            # CM3计算
             est_cm3 = (act['mtd_cm3'] / 19) * 31
             c_rate = (est_cm3 / tgt['cm3_tgt']) * 100
-            cm3_data.append({"BD负责人": name, "本月预估": f"${est_cm3:,.0f}", "目标": f"${tgt['cm3_tgt']:,}", "完成度": f"{c_rate:.1f}%"})
+            c_diff = est_cm3 - tgt['cm3_tgt']
+            cm3_data.append({
+                "BD负责人": name, 
+                "本月预估": f"${est_cm3:,.0f}", 
+                "目标值": f"${tgt['cm3_tgt']:,}", 
+                "完成度": f"{c_rate:.1f}%",
+                "缺口/盈余": f"${c_diff:,.0f}"
+            })
 
         # 4. 渲染带样式的表格
         st.markdown("### 📋 BD个人维度日均单量追踪")
