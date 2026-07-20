@@ -462,3 +462,8 @@ if data_loaded:
         
         st.markdown("<h3 style='margin-bottom:15px;'>💰 表二：BD个人维度月度 CM3 预测对齐</h3>", unsafe_allow_html=True)
         st.dataframe(pd.DataFrame(cm3_rows), use_container_width=True, hide_index=True)
+        # 在显示百分比时，如果 > 90% 显示为绿色，< 70% 显示为红色
+def get_completion_color(rate):
+    if rate >= 90: return "#28a745"
+    if rate < 70: return "#dc3545"
+    return "#1a252c"
